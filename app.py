@@ -1,27 +1,23 @@
 """
-YouTube Pro Translator - Streamlit Application
-OS依存なし（ブラウザ完結）、SRT字幕タイムコード完全保持、文脈考慮の2パス高精度翻訳
+YouTube Pro Video & Subtitle AI Translator
+動画・音声ファイル（mp4, mp3, wav等）を直接アップロードして、
+自動で文字起こし（タイムコード付きSRT生成）＋高精度ローカライズ翻訳を一括実行するStreamlitアプリ
 """
 
 import streamlit as st
 import anthropic
 import openai
-import re
+import os
+import tempfile
 import io
 
-# ---------------------------------------------------------
-# ページ初期設定
-# ---------------------------------------------------------
 st.set_page_config(
-    page_title="YouTube Pro AI Translator",
+    page_title="YouTube Pro Video AI Translator",
     page_icon="🎬",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# ---------------------------------------------------------
-# カスタムCSS（見やすさと操作性の向上）
-# ---------------------------------------------------------
 st.markdown("""
 <style>
     .main-header {
@@ -44,25 +40,25 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------------------------------------------------
-# サイドバー設定（モデル・APIキー・翻訳オプション）
-# ---------------------------------------------------------
 with st.sidebar:
     st.header("⚙️ システム設定")
     
+    st.info("💡 動画の音声認識にはOpenAI Whisperを使用し、翻訳・ローカライズにはClaudeまたはGPT-4oを使用します。")
+    
+    openai_key = st.text_input("OpenAI API Key (音声文字起こし用)", type="password", placeholder="sk-...")
+    
     engine = st.selectbox(
-        "AIエンジン選択",
-        ["Claude (Anthropic)", "ChatGPT (OpenAI)"],
-        help="高精度かつ自然な表現にはClaude、汎用性にはChatGPTがおすすめです。"
+        "翻訳AIエンジン",
+        ["Claude (Anthropic)", "ChatGPT (OpenAI)"]
     )
     
     if engine == "Claude (Anthropic)":
-        api_key = st.text_input("Anthropic API Key", type="password", placeholder="sk-ant-...")
-        model_name = st.selectbox("モデル", ["claude-3-5-sonnet-20241022", "claude-3-haiku-20240307"])
+        claude_key = st.text_input("Anthropic API Key (翻訳用)", type="password", placeholder="sk-ant-...")
+        model_name = "claude-3-5-sonnet-20241022"
     else:
-        api_key = st.text_input("OpenAI API Key", type="password", placeholder="sk-...")
-        model_name = st.selectbox("モデル", ["gpt-4o", "gpt-4o-mini"])
-    
+        claude_key = ""
+        model_name = "gpt-4o"
+        
     st.divider()
     st.header("🌐 翻訳設定")
     
@@ -71,7 +67,7 @@ with st.sidebar:
         [
             "英語 (US - 自然な日常会話)",
             "英語 (UK - イギリス英語)",
-            "韓国語 (自然な敬語/パンマル選択可)",
+            "韓国語 (自然な敬語/パンマル)",
             "繁体字中国語 (台湾/香港向け)",
             "簡体字中国語",
             "スペイン語",
@@ -83,121 +79,125 @@ with st.sidebar:
     content_tone = st.selectbox(
         "動画ジャンル・口調",
         [
-            "YouTubeエンタメ・実況（軽快・スラング・テンポ重視）",
+            "YouTubeエンタメ・実況（軽快・スラング適応）",
             "ビジネス・解説・教養（論理的・明瞭・丁寧）",
-            "ストーリー・怪談・朗読（ドラマチック・感情豊か）",
-            "ショート動画（超短縮・インパクト重視・画面収まり優先）"
+            "ストーリー・怪談・朗読（情緒的・ドラマチック）",
+            "ショート動画（インパクト重視・短縮字幕）"
         ]
     )
 
     custom_instructions = st.text_area(
-        "追加の個別指示（任意）",
-        placeholder="例: 主人公の口調は生意気な少年にして。専門用語「○○」は「XX」と訳して。",
-        height=70
+        "追加指示（任意）",
+        placeholder="例: 主人公はフランクな口調に。専門用語「○○」はそのままにして。"
     )
 
-# ---------------------------------------------------------
-# ロジック関数：プロンプト生成 & API呼び出し
-# ---------------------------------------------------------
-def create_system_prompt(lang, tone, instructions):
-    base_prompt = f"""あなたはYouTube動画および字幕ローカライズの最高峰プロフェッショナル翻訳者です。
-
-【目的】
-入力されたテキスト（台本またはSRT字幕データ）を「{lang}」へ最高品質で翻訳・ローカライズしてください。
-
-【重要な翻訳ルール】
-1. **文脈の最適化（意訳と自然さ）**:
-   単なる直訳を固く禁じます。動画ジャンル「{tone}」に適した、現地のネイティブYouTuberや視聴者が実際に使う最も自然で引き込まれる表現を採用してください。
-2. **SRT字幕の厳格なフォーマット維持**:
-   入力がSRT形式（連番、タイムコード 00:00:00,000 --> 00:00:00,000、字幕文）の場合、**番号とタイムコード行は1文字も改変せずそのまま維持**し、テキスト部分のみを翻訳して置き換えてください。
-3. **字幕の可読性（文字数・テンポ）**:
-   視聴者が動画再生中に無理なく読めるよう、冗長な表現を避け、簡潔かつテンポの良い言葉選びを行ってください。
-4. **追加指示**:
-   {instructions if instructions else "なし"}
-"""
-    return base_prompt
-
-def translate_with_claude(text, sys_prompt, key, model):
-    client = anthropic.Anthropic(api_key=key)
-    response = client.messages.create(
-        model=model,
-        max_tokens=4096,
-        system=sys_prompt,
-        messages=[
-            {"role": "user", "content": f"以下のテキストを最高品質で翻訳してください。SRTの場合はフォーマットを完全に保護してください。\n\n{text}"}
-        ],
-        temperature=0.3
-    )
-    return response.content[0].text
-
-def translate_with_openai(text, sys_prompt, key, model):
+def extract_srt_from_audio(file_bytes, file_ext, key):
     client = openai.OpenAI(api_key=key)
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": sys_prompt},
-            {"role": "user", "content": f"以下のテキストを最高品質で翻訳してください。SRTの場合はフォーマットを完全に保護してください。\n\n{text}"}
-        ],
-        temperature=0.3
-    )
-    return response.choices[0].message.content
-
-# ---------------------------------------------------------
-# メイン画面レイアウト
-# ---------------------------------------------------------
-st.markdown('<div class="main-header">🎬 YouTube Pro 高精度AI翻訳ツール</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-header">SRT字幕のタイムコードを100%保持し、動画ジャンルに最適化されたネイティブ表現へ自動ローカライズします。</div>', unsafe_allow_html=True)
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.subheader("📥 原文入力")
-    input_mode = st.radio("入力方法を選択", ["テキスト貼り付け", "SRT / TXTファイルアップロード"], horizontal=True)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
+        tmp.write(file_bytes)
+        tmp_path = tmp.name
     
-    source_text = ""
-    if input_mode == "テキスト貼り付け":
-        source_text = st.text_area("台本テキストまたはSRT内容を入力", height=350, placeholder="ここにテキストまたはSRT字幕を貼り付けてください...")
+    try:
+        with open(tmp_path, "rb") as audio_file:
+            transcript = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file,
+                response_format="srt"
+            )
+        return transcript
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+def create_system_prompt(lang, tone, instructions):
+    return f"""あなたはYouTube動画・字幕ローカライズの最高峰プロ翻訳者です。
+【目的】
+入力されたSRT字幕データを「{lang}」へ最高品質で翻訳・ローカライズしてください。
+
+【重要ルール】
+1. **文脈の最適化（意訳と自然さ）**: 動画ジャンル「{tone}」に適した、ネイティブYouTuberが使う最も自然な表現を採用してください。
+2. **SRT形式の厳格な維持**: 番号とタイムコード（00:00:00,000 --> 00:00:00,000）は1文字も改変せず、字幕テキスト部分のみを翻訳して置き換えてください。
+3. **可読性**: 視聴者が動画再生中に無理なく読めるよう、簡潔かつテンポの良い言葉選びを行ってください。
+4. **個別指示**: {instructions if instructions else "なし"}
+"""
+
+def translate_srt(srt_text, sys_prompt, engine_type, openai_k, claude_k, model):
+    if engine_type == "Claude (Anthropic)":
+        client = anthropic.Anthropic(api_key=claude_k)
+        res = client.messages.create(
+            model=model,
+            max_tokens=4096,
+            system=sys_prompt,
+            messages=[{"role": "user", "content": f"以下のSRT字幕をフォーマットを完全に維持して翻訳してください:\n\n{srt_text}"}],
+            temperature=0.3
+        )
+        return res.content[0].text
     else:
-        uploaded_file = st.file_uploader("ファイルを選択 (.srt, .txt)", type=["srt", "txt"])
-        if uploaded_file is not None:
-            source_text = uploaded_file.getvalue().decode("utf-8", errors="ignore")
-            st.success(f"ファイル読み込み完了: {uploaded_file.name}")
+        client = openai.OpenAI(api_key=openai_k)
+        res = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": f"以下のSRT字幕をフォーマットを完全に維持して翻訳してください:\n\n{srt_text}"}
+            ],
+            temperature=0.3
+        )
+        return res.choices[0].message.content
 
-    start_btn = st.button("🚀 高精度ローカライズ翻訳を開始", type="primary")
+# メインUI
+st.markdown('<div class="main-header">🎬 YouTube Pro 動画直接アップロード AI翻訳ツール</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-header">動画（MP4等）や音声を入れるだけで、自動文字起こし＋タイムコード付き翻訳字幕（SRT）を一括生成します。</div>', unsafe_allow_html=True)
 
-with col2:
-    st.subheader("📤 翻訳結果")
-    result_container = st.empty()
+uploaded_media = st.file_uploader(
+    "🎥 動画または音声ファイルをアップロード (.mp4, .mov, .mp3, .wav, .m4a)",
+    type=["mp4", "mov", "mp3", "wav", "m4a"]
+)
 
-# ---------------------------------------------------------
-# 実行処理
-# ---------------------------------------------------------
-if start_btn:
-    if not api_key:
-        st.error("⚠️ サイドバーからAPIキーを入力してください。")
-    elif not source_text.strip():
-        st.warning("⚠️ 翻訳するテキストまたはファイルを入力してください。")
+start_video_process = st.button("🚀 動画から直接翻訳字幕を一括生成", type="primary")
+
+if start_video_process:
+    if not openai_key:
+        st.error("⚠️ 音声認識を行うため、サイドバーに「OpenAI API Key」を入力してください。")
+    elif engine == "Claude (Anthropic)" and not claude_key:
+        st.error("⚠️ 翻訳用エンジンにClaudeを選択しているため、「Anthropic API Key」を入力してください。")
+    elif uploaded_media is None:
+        st.warning("⚠️ 動画または音声ファイルをアップロードしてください。")
     else:
-        with st.spinner("AIが文脈を解析し、ネイティブ向けに高精度翻訳中..."):
+        with st.status("🎬 動画処理と翻訳を実行中...", expanded=True) as status:
+            file_bytes = uploaded_media.getvalue()
+            _, file_ext = os.path.splitext(uploaded_media.name)
+            
+            st.write("🎙️ 1/2 動画の音声を高精度文字起こし中 (Whisper)...")
             try:
+                raw_srt = extract_srt_from_audio(file_bytes, file_ext, openai_key)
+                st.write("🌐 2/2 ネイティブ向けに文脈ローカライズ翻訳中...")
+                
                 sys_prompt = create_system_prompt(target_lang, content_tone, custom_instructions)
+                final_translated_srt = translate_srt(
+                    raw_srt, sys_prompt, engine, openai_key, claude_key, model_name
+                )
                 
-                if engine == "Claude (Anthropic)":
-                    translated_output = translate_with_claude(source_text, sys_prompt, api_key, model_name)
-                else:
-                    translated_output = translate_with_openai(source_text, sys_prompt, api_key, model_name)
+                status.update(label="✅ 全自動処理が完了しました！", state="complete", expanded=False)
                 
-                with col2:
-                    st.text_area("翻訳後テキスト / SRT", value=translated_output, height=350)
-                    
-                    # ダウンロードボタン
+                st.subheader("📤 生成された翻訳字幕 (SRT)")
+                st.text_area("翻訳SRTデータ", value=final_translated_srt, height=300)
+                
+                col_dl1, col_dl2 = st.columns(2)
+                with col_dl1:
                     st.download_button(
-                        label="💾 翻訳結果をダウンロード (.srt / .txt)",
-                        data=translated_output,
-                        file_name="translated_youtube_subtitles.srt",
+                        label="💾 翻訳後字幕をDL (.srt)",
+                        data=final_translated_srt,
+                        file_name=f"translated_{uploaded_media.name}.srt",
                         mime="text/plain"
                     )
-                st.toast("✅ 翻訳が完了しました！", icon="🎉")
+                with col_dl2:
+                    st.download_button(
+                        label="📄 原文（日本語）字幕をDL (.srt)",
+                        data=raw_srt,
+                        file_name=f"original_{uploaded_media.name}.srt",
+                        mime="text/plain"
+                    )
+                st.toast("🎉 字幕の作成と翻訳が完了しました！", icon="🚀")
                 
             except Exception as e:
                 st.error(f"エラーが発生しました: {str(e)}")
