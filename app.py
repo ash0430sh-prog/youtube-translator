@@ -1,5 +1,6 @@
 """
 TRANSLY PRO | AI Video Localization System
+- Cyberpunk 3D Core Interface
 - Freemium License Protection (Supabase Integration)
 - State-Preserving Multi-Format Translator (SRT/TXT)
 - Full Auto-Healing Fallback Engine
@@ -27,7 +28,7 @@ except Exception:
     pass
 
 st.set_page_config(
-    page_title="TRANSLY PRO | AI動画ローカライズ",
+    page_title="TRANSLY PRO | 次世代AI動画ローカライズ",
     page_icon="👾",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -45,74 +46,245 @@ if "m1_result" not in st.session_state:
 if "m2_result" not in st.session_state:
     st.session_state.m2_result = None
 
-# 共通CSSスタイル
+# 共通CSSスタイル（Cyberpunk Console Engine）
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+JP:wght@400;600;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;600;800&display=swap');
     
     .stApp {
-        background-color: #050811;
+        background: radial-gradient(circle at 50% 10%, #0c162d 0%, #050811 80%);
         color: #E2E8F0;
         font-family: 'Noto Sans JP', sans-serif;
     }
     
+    .hero-container {
+        padding: 10px 0 20px 0;
+        border-bottom: 1px solid rgba(0, 242, 254, 0.2);
+        margin-bottom: 25px;
+    }
+    .hero-title {
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 900;
+        font-size: 2.3rem;
+        letter-spacing: 0.12em;
+        background: linear-gradient(135deg, #00F2FE 0%, #4FACFE 50%, #8E2DE2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0 0 25px rgba(0, 242, 254, 0.4);
+        margin-bottom: 4px;
+    }
+    .hero-sub {
+        font-family: 'Share Tech Mono', monospace;
+        color: #7DD3FC;
+        font-size: 0.95rem;
+        letter-spacing: 0.08em;
+    }
+
     .pro-badge-active {
         background: linear-gradient(135deg, #10B981 0%, #059669 100%);
         color: #FFFFFF;
         font-family: 'Orbitron', sans-serif;
         font-weight: 800;
-        font-size: 0.78rem;
-        padding: 4px 10px;
+        font-size: 0.8rem;
+        padding: 6px 14px;
         border-radius: 6px;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.1em;
         display: inline-block;
-        box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+        box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
     }
     
     .free-badge {
-        background: rgba(148, 163, 184, 0.15);
+        background: rgba(148, 163, 184, 0.12);
         border: 1px solid rgba(148, 163, 184, 0.3);
         color: #94A3B8;
         font-family: 'Orbitron', sans-serif;
         font-weight: 700;
-        font-size: 0.75rem;
-        padding: 4px 10px;
+        font-size: 0.78rem;
+        padding: 5px 12px;
         border-radius: 6px;
         display: inline-block;
     }
-    
-    .lock-card {
-        background: linear-gradient(135deg, rgba(13, 22, 44, 0.95) 0%, rgba(8, 15, 30, 0.98) 100%);
-        border: 1px dashed rgba(0, 242, 254, 0.4);
+
+    /* ロックカード（高精細サイバー隔壁） */
+    .cyber-lock-box {
+        background: linear-gradient(180deg, rgba(13, 22, 44, 0.85) 0%, rgba(5, 10, 22, 0.95) 100%);
+        border: 1px solid rgba(0, 242, 254, 0.35);
+        box-shadow: 0 0 35px rgba(0, 242, 254, 0.12), inset 0 0 30px rgba(0, 242, 254, 0.04);
         border-radius: 16px;
-        padding: 36px 24px;
+        padding: 30px 24px 35px 24px;
         text-align: center;
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
-        margin: 20px 0;
+        position: relative;
+        overflow: hidden;
+        margin-top: 10px;
     }
-    .lock-icon {
-        font-size: 3rem;
-        margin-bottom: 12px;
-        display: block;
+    .cyber-lock-box::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0; height: 2px;
+        background: linear-gradient(90deg, transparent, #00F2FE, #8E2DE2, transparent);
     }
-    .lock-title {
+    .lock-hud-tag {
+        font-family: 'Share Tech Mono', monospace;
+        color: #FF0055;
+        font-size: 0.82rem;
+        letter-spacing: 0.15em;
+        margin-bottom: 8px;
+        display: inline-block;
+    }
+    .lock-hud-title {
         font-family: 'Orbitron', sans-serif;
-        font-size: 1.4rem;
-        font-weight: 800;
-        color: #00F2FE;
-        margin-bottom: 10px;
+        font-weight: 900;
+        font-size: 1.6rem;
+        letter-spacing: 0.08em;
+        color: #FFFFFF;
+        text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        margin-bottom: 12px;
     }
-    .lock-desc {
+    .lock-hud-desc {
         color: #94A3B8;
         font-size: 0.95rem;
-        max-width: 580px;
-        margin: 0 auto 20px auto;
-        line-height: 1.6;
+        max-width: 620px;
+        margin: 0 auto 24px auto;
+        line-height: 1.7;
+    }
+    .feature-chips {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 25px;
+    }
+    .chip {
+        background: rgba(0, 242, 254, 0.08);
+        border: 1px solid rgba(0, 242, 254, 0.25);
+        color: #7DD3FC;
+        font-family: 'Share Tech Mono', monospace;
+        font-size: 0.8rem;
+        padding: 6px 14px;
+        border-radius: 20px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Supabaseによるライセンス検証
+# 3D AI Robot コンポーネント
+def render_cyber_robot(height=280):
+    robot_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body {{
+          margin: 0;
+          overflow: hidden;
+          background: transparent;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }}
+        canvas {{
+          display: block;
+          filter: drop-shadow(0 0 25px rgba(0, 242, 254, 0.45));
+        }}
+      </style>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    </head>
+    <body>
+      <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 4.8;
+        camera.position.y = 0.2;
+
+        const renderer = new THREE.WebGLRenderer({{ alpha: true, antialias: true }});
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        const coreGroup = new THREE.Group();
+        scene.add(coreGroup);
+
+        // 外殻ワイヤーフレーム球
+        const sphereGeo = new THREE.SphereGeometry(1.3, 24, 24);
+        const sphereMat = new THREE.MeshBasicMaterial({{
+          color: 0x00F2FE,
+          wireframe: true,
+          transparent: true,
+          opacity: 0.35
+        }});
+        const outerSphere = new THREE.Mesh(sphereGeo, sphereMat);
+        coreGroup.add(outerSphere);
+
+        // コア多面体（発光体）
+        const coreGeo = new THREE.IcosahedronGeometry(0.75, 1);
+        const coreMat = new THREE.MeshStandardMaterial({{
+          color: 0x8E2DE2,
+          roughness: 0.2,
+          metalness: 0.8,
+          emissive: 0x00F2FE,
+          emissiveIntensity: 0.6
+        }});
+        const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+        coreGroup.add(coreMesh);
+
+        // 軌道リング1
+        const ring1Geo = new THREE.TorusGeometry(1.65, 0.02, 16, 100);
+        const ring1Mat = new THREE.MeshBasicMaterial({{ color: 0x00F2FE, transparent: true, opacity: 0.8 }});
+        const ring1 = new THREE.Mesh(ring1Geo, ring1Mat);
+        coreGroup.add(ring1);
+
+        // 軌道リング2
+        const ring2Geo = new THREE.TorusGeometry(1.85, 0.015, 16, 100);
+        const ring2Mat = new THREE.MeshBasicMaterial({{ color: 0xFF007F, transparent: true, opacity: 0.65 }});
+        const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
+        coreGroup.add(ring2);
+
+        // ライティング
+        const light = new THREE.PointLight(0x00F2FE, 2.2, 50);
+        light.position.set(5, 5, 5);
+        scene.add(light);
+        const light2 = new THREE.PointLight(0xFF007F, 1.8, 50);
+        light2.position.set(-5, -5, -2);
+        scene.add(light2);
+        scene.add(new THREE.AmbientLight(0x222233));
+
+        // マウス追従
+        let mouseX = 0, mouseY = 0;
+        document.addEventListener('mousemove', (e) => {{
+          mouseX = (e.clientX / window.innerWidth - 0.5) * 1.5;
+          mouseY = (e.clientY / window.innerHeight - 0.5) * 1.5;
+        }});
+
+        function animate() {{
+          requestAnimationFrame(animate);
+          coreGroup.rotation.y += 0.008;
+          coreGroup.rotation.x += 0.004;
+
+          ring1.rotation.x += 0.012;
+          ring1.rotation.y += 0.007;
+
+          ring2.rotation.z += 0.015;
+          ring2.rotation.x += 0.009;
+
+          coreGroup.rotation.y += (mouseX - coreGroup.rotation.y) * 0.04;
+          coreGroup.rotation.x += (-mouseY - coreGroup.rotation.x) * 0.04;
+
+          renderer.render(scene, camera);
+        }}
+        animate();
+
+        window.addEventListener('resize', () => {{
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        }});
+      </script>
+    </body>
+    </html>
+    """
+    components.html(robot_html, height=height)
+
+# Supabaseによるライセンス検証関数
 def verify_license(key_str: str) -> bool:
     if not key_str or not supabase_client:
         return False
@@ -126,16 +298,18 @@ def verify_license(key_str: str) -> bool:
         st.sidebar.error(f"License Auth Error: {e}")
     return False
 
-# サイドバー
+# ==========================================
+# サイドバー設定
+# ==========================================
 with st.sidebar:
-    st.markdown("### 👾 TRANSLY PRO")
+    st.markdown("### 👾 TRANSLY CONSOLE")
     
     st.markdown("#### 💎 PRO 会員認証")
     input_license = st.text_input(
         "ライセンスキー (PRO会員用)",
         value=st.session_state.license_key,
         type="password",
-        help="発行されたライセンスキーを入力してください"
+        help="サブスク決済完了時に発行されたキーを入力してください"
     )
     
     col_l1, col_l2 = st.columns(2)
@@ -151,13 +325,13 @@ with st.sidebar:
                     st.error("無効なキーです")
                 st.rerun()
     with col_l2:
-        if st.button("ログアウト", use_container_width=True):
+        if st.button("クリア", use_container_width=True):
             st.session_state.license_key = ""
             st.session_state.is_pro_active = False
             st.rerun()
 
     if st.session_state.is_pro_active:
-        st.markdown('<div class="pro-badge-active">PRO ACTIVE 🔓 全機能解放中</div>', unsafe_allow_html=True)
+        st.markdown('<div class="pro-badge-active">PRO ACTIVE 🔓 解放中</div>', unsafe_allow_html=True)
     else:
         st.markdown('<div class="free-badge">FREE PLAN (MODE 2 & 3 利用可能)</div>', unsafe_allow_html=True)
 
@@ -169,7 +343,7 @@ with st.sidebar:
         st.session_state.gemini_api_key = user_key.strip()
     
     st.markdown("---")
-    st.markdown("#### 🌐 翻訳設定")
+    st.markdown("#### 🌐 ローカライズ設定")
     target_lang = st.selectbox(
         "翻訳先言語",
         ["英語 (US日常会話/スラング)", "英語 (ビジネス/丁寧)", "韓国語", "繁体字中国語 (台湾/香港)", "スペイン語"]
@@ -178,8 +352,9 @@ with st.sidebar:
         "動画ジャンル・世界観",
         ["⚡ ショート/リール/TikTok (短縮重視)", "🔥 YouTubeエンタメ・実況 (テンポ重視)", "📖 2ch/修羅場/スカッと系 (煽り重視)", "🎓 解説・ビジネス・教養"]
     )
-    custom_rule = st.text_area("個別ルール・固有名詞 (任意)", placeholder="例: 専門用語の指定やスラングの調整")
+    custom_rule = st.text_area("個別ルール・固有名詞 (任意)", placeholder="例: 専門用語の指定やトーンの調整")
 
+# ヘルパー関数
 def srt_to_plain_text(srt_content: str) -> str:
     lines = srt_content.strip().split('\n')
     text_lines = []
@@ -218,31 +393,50 @@ def get_system_prompt():
 - 字幕は1行あたり短く保ち、スマホ画面で一瞬で読めるテンポにすること。
 """
 
-# メインコンテンツ
-st.markdown("## ⚡ TRANSLY PRO — AI Video Localization")
-st.markdown("<p style='color:#94A3B8;'>完全無料Google AIを活用し、Premiere / CapCut対応の字幕SRT・タイトル案を一発生成</p>", unsafe_allow_html=True)
+# ==========================================
+# メイン画面ヘッダー
+# ==========================================
+st.markdown("""
+<div class="hero-container">
+    <div class="hero-title">TRANSLY PRO // NEURAL LOCALIZE</div>
+    <div class="hero-sub">> HIGH-PRECISION MULTI-MODAL TRANSLATION ENGINE & AUTO SRT COMPILER</div>
+</div>
+""", unsafe_allow_html=True)
 
 tab1, tab2, tab3 = st.tabs([
-    "🎬 MODE 1: 動画・音声投入 (PRO)",
+    "🎬 MODE 1: メディア直接解析 (PRO)",
     "📋 MODE 2: 台本・SRTコピペ (FREE)",
     "⚡ MODE 3: 1文クイック提案 (FREE)"
 ])
 
+# ----------------------------------------------------
+# TAB 1: 動画・音声直接投入 (PRO限定)
+# ----------------------------------------------------
 with tab1:
     if not st.session_state.is_pro_active:
+        render_cyber_robot(height=260)
+        
         st.markdown("""
-        <div class="lock-card">
-            <span class="lock-icon">🔒</span>
-            <div class="lock-title">PRO PLAN EXCLUSIVE</div>
-            <div class="lock-desc">
-                動画・音声ファイル（MP4 / MOV / MP3）からの直接SRT生成・タイムコード完全同期機能は <strong>PRO会員限定</strong> です。<br>
-                台本テキストの翻訳（MODE 2）や1文提案（MODE 3）は無料プランのまますぐにご利用いただけます。
+        <div class="cyber-lock-box">
+            <div class="lock-hud-tag">// SECURITY PROTOCOL: RESTRICTED ACCESS</div>
+            <div class="lock-hud-title">PRO SPECIFICATION LOCKED</div>
+            <div class="lock-hud-desc">
+                動画・音声ファイル（MP4 / MOV / MP3）からの<strong>自動文字起こし・タイムコード同期SRT生成</strong>はPRO専用エンジンです。<br>
+                テキスト台本翻訳（MODE 2）やフレーズ提案（MODE 3）は、無料プランのまま現在すぐにご利用いただけます。
             </div>
-            <p style="color:#00F2FE; font-size:0.9rem; font-weight:700;">月額プラン加入後、サイドバーに発行されたライセンスキーを入力すると即時解放されます。</p>
+            <div class="feature-chips">
+                <span class="chip">✔ MP4/MOV/MP3 ダイレクトインジェクション</span>
+                <span class="chip">✔ 0.1秒単位のタイムコード完全同期</span>
+                <span class="chip">✔ 3パターン CTR最適化タイトル生成</span>
+            </div>
+            <p style="color:#00F2FE; font-family:'Share Tech Mono', monospace; font-size:0.9rem;">
+                >> PROプラン加入後、サイドバーのライセンスキー入力で即座にアンロックされます。
+            </p>
         </div>
         """, unsafe_allow_html=True)
     else:
-        st.markdown("#### 🎬 メディアファイルを直接ドロップ")
+        render_cyber_robot(height=200)
+        st.markdown("#### 🎬 メディアファイルを直接インジェクション")
         uploaded_file = st.file_uploader("動画・音声を選択 (MP4, MOV, MP3)", type=["mp4", "mov", "mp3", "m4a", "wav"])
         gen_meta = st.checkbox("クリック率特化タイトル案・サムネ英文・概要欄も同時生成する", value=True)
         
@@ -298,6 +492,9 @@ with tab1:
             with st.expander("プレビュー表示", expanded=True):
                 st.text_area("出力内容", value=raw_text, height=350)
 
+# ----------------------------------------------------
+# TAB 2: 台本・SRTコピペ翻訳 (FREEプラン解放)
+# ----------------------------------------------------
 with tab2:
     st.markdown("#### 📋 台本テキスト / SRT字幕 コピペ翻訳（無料）")
     input_text = st.text_area("翻訳したい日本語台本またはSRT字幕を貼り付け", height=200)
@@ -345,6 +542,9 @@ with tab2:
         
         st.text_area("翻訳内容", value=res_m2, height=300)
 
+# ----------------------------------------------------
+# TAB 3: 1文クイック提案 (FREEプラン解放)
+# ----------------------------------------------------
 with tab3:
     st.markdown("#### ⚡ 1文クイック提案（無料辞書モード）")
     phrase = st.text_input("ネイティブ表現を知りたい日本語フレーズ", placeholder="例: マジでやばい、調子乗るなよ")
