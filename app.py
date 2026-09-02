@@ -1,7 +1,8 @@
 """
-TRANSLY PRO | Gemini 100% Free Core Edition (Pure gemini-3.6-flash with Retry)
-- 404の原因となる旧モデル名を全撤廃し、最新の gemini-3.6-flash に完全固定
-- ロング動画のインデックス待機 & 503過負荷時の段階的リトライ処理
+TRANSLY PRO | Self-Healing Dynamic Model Architecture
+- モデル名の固定値を完全撤廃
+- client.models.list() により現在利用可能な最新Flashモデルを動的検出・自動適応
+- 404 / 503 等のエラーはユーザー画面に出さずバックグラウンドで自動修復
 """
 
 import streamlit as st
@@ -309,8 +310,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-MODEL_NAME = "gemini-3.6-flash"
-
 def get_mime_type(file_name):
     ext = file_name.split('.')[-1].lower()
     mime_map = {
@@ -321,6 +320,20 @@ def get_mime_type(file_name):
         'm4a': 'audio/mp4'
     }
     return mime_map.get(ext, 'video/mp4')
+
+# Google APIから現在使用可能なモデル一覧を動的取得
+def discover_active_models(client):
+    try:
+        available = []
+        for m in client.models.list():
+            name = m.name.replace("models/", "")
+            if "flash" in name.lower() and "thinking" not in name.lower():
+                available.append(name)
+        # 降順ソート（最新世代を先頭に）
+        available.sort(reverse=True)
+        return available if available else ["gemini-3.6-flash"]
+    except Exception:
+        return ["gemini-3.6-flash"]
 
 # サイドバー
 with st.sidebar:
@@ -378,26 +391,33 @@ def get_system_instruction(lang, genre, custom):
 ルール: {custom if custom else "なし"}
 """
 
-def generate_with_retry(client, contents, sys_inst, max_retries=4):
-    last_err = None
-    for attempt in range(max_retries):
-        try:
-            response = client.models.generate_content(
-                model=MODEL_NAME,
-                contents=contents,
-                config=types.GenerateContentConfig(system_instruction=sys_inst)
-            )
-            return response.text
-        except Exception as e:
-            last_err = e
-            err_str = str(e)
-            if "503" in err_str or "UNAVAILABLE" in err_str or "high demand" in err_str:
-                wait_sec = (attempt + 1) * 4
-                time.sleep(wait_sec)
-                continue
-            else:
-                raise e
-    raise last_err
+# バックグラウンド自動修復実行エンジン（エラーを自動検知して生存モデルへ迂回）
+def execute_with_auto_healing(client, contents, sys_inst):
+    active_models = discover_active_models(client)
+    last_exception = None
+    
+    for model_name in active_models:
+        for attempt in range(2):
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=contents,
+                    config=types.GenerateContentConfig(system_instruction=sys_inst)
+                )
+                return response.text
+            except Exception as e:
+                last_exception = e
+                err_str = str(e)
+                # 404（廃止）なら即座に次のモデルへ
+                if "404" in err_str or "NOT_FOUND" in err_str:
+                    break
+                # 503（混雑）なら2秒待って同一モデルでリトライ、ダメなら次へ
+                elif "503" in err_str or "UNAVAILABLE" in err_str:
+                    time.sleep(2)
+                    continue
+                else:
+                    break
+    raise last_exception
 
 # メインヘッダー
 st.markdown("""
@@ -466,7 +486,7 @@ with tab1:
                 
                 try:
                     client = genai.Client(api_key=gemini_key.strip())
-                    st.write("☁️ 2/3 Googleサーバーへ転送・内部インデックス処理中...")
+                    st.write("☁️ 2/3 Googleサーバーへ転送・インデックス待機中...")
                     
                     uploaded_file = client.files.upload(file=tmp_path)
                     
@@ -477,7 +497,7 @@ with tab1:
                         wait_count += 1
                         
                     if uploaded_file.state.name == "FAILED":
-                        raise ValueError("Google側での動画解析処理に失敗しました。")
+                        raise ValueError("動画解析処理に失敗しました。")
                     
                     st.write("🌐 3/3 音声を解析し、指定コンテンツを生成中...")
                     
@@ -497,7 +517,7 @@ with tab1:
                     if extras:
                         prompt += "\n【追加生成項目（字幕データの末尾に記載してください）】\n" + "\n".join(extras)
                         
-                    result_text = generate_with_retry(
+                    result_text = execute_with_auto_healing(
                         client=client,
                         contents=[uploaded_file, prompt],
                         sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
@@ -565,7 +585,7 @@ with tab2:
                     if t_extras:
                         u_prompt += "\n\n末尾に以下を追加してください：\n" + "\n".join(t_extras)
                         
-                    res_text = generate_with_retry(
+                    res_text = execute_with_auto_healing(
                         client=client,
                         contents=u_prompt,
                         sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
@@ -610,7 +630,7 @@ with tab3:
 3. **ナチュラル標準（誰にでも通じる自然な日常会話）**
 4. **解説（ニュアンスの違いを1行で）**
 """
-                    res_text = generate_with_retry(
+                    res_text = execute_with_auto_healing(
                         client=client,
                         contents=single_prompt,
                         sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
