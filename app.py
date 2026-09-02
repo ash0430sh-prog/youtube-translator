@@ -1,7 +1,7 @@
 """
-TRANSLY PRO | Gemini 100% Free Core Edition (Long Video Ready)
-- アップロード後の動画処理完了（ACTIVEステータス）を自動待機
-- ロング動画・大容量ファイルでも503混雑エラーを防止
+TRANSLY PRO | Gemini 100% Free Core Edition (Pure gemini-3.6-flash with Retry)
+- 404の原因となる旧モデル名を全撤廃し、最新の gemini-3.6-flash に完全固定
+- ロング動画のインデックス待機 & 503過負荷時の段階的リトライ処理
 """
 
 import streamlit as st
@@ -27,7 +27,6 @@ st.markdown("""
         font-family: 'Noto Sans JP', sans-serif;
     }
     
-    /* 最上部ヘッダー */
     header[data-testid="stHeader"] {
         background: rgba(5, 8, 17, 0.85) !important;
         backdrop-filter: blur(16px) !important;
@@ -50,7 +49,6 @@ st.markdown("""
         display: none !important;
     }
     
-    /* 背景 */
     .stApp {
         background-color: #050811;
         background-image: 
@@ -63,7 +61,6 @@ st.markdown("""
         color: #E2E8F0;
     }
     
-    /* テキストエリア */
     textarea, [data-baseweb="textarea"] textarea {
         background-color: #090E1A !important;
         color: #F8FAFC !important;
@@ -84,7 +81,6 @@ st.markdown("""
         font-size: 1rem !important;
     }
     
-    /* サイドバー */
     [data-testid="stSidebar"] {
         background: rgba(6, 11, 24, 0.96) !important;
         border-right: 1px solid rgba(0, 242, 254, 0.2) !important;
@@ -108,7 +104,6 @@ st.markdown("""
         text-shadow: 0 0 12px rgba(0, 242, 254, 0.5);
     }
 
-    /* ヘッダーカード */
     .hero-container {
         position: relative;
         background: linear-gradient(135deg, rgba(13, 22, 44, 0.8) 0%, rgba(8, 15, 30, 0.9) 100%);
@@ -229,7 +224,6 @@ st.markdown("""
         max-width: 76%;
     }
     
-    /* タブ */
     .stTabs [data-baseweb="tab-list"] {
         gap: 14px;
         background-color: rgba(10, 18, 38, 0.7);
@@ -315,8 +309,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 優先順位付きの安定モデルリスト
-FALLBACK_MODELS = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+MODEL_NAME = "gemini-3.6-flash"
 
 def get_mime_type(file_name):
     ext = file_name.split('.')[-1].lower()
@@ -385,27 +378,25 @@ def get_system_instruction(lang, genre, custom):
 ルール: {custom if custom else "なし"}
 """
 
-def generate_with_smart_fallback(client, contents, sys_inst):
+def generate_with_retry(client, contents, sys_inst, max_retries=4):
     last_err = None
-    for model_name in FALLBACK_MODELS:
-        for attempt in range(2):
-            try:
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=contents,
-                    config=types.GenerateContentConfig(system_instruction=sys_inst)
-                )
-                return response.text
-            except Exception as e:
-                last_err = e
-                err_str = str(e)
-                if "404" in err_str or "NOT_FOUND" in err_str:
-                    break
-                elif "503" in err_str or "UNAVAILABLE" in err_str or "high demand" in err_str:
-                    time.sleep(3)
-                    continue
-                else:
-                    break
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model=MODEL_NAME,
+                contents=contents,
+                config=types.GenerateContentConfig(system_instruction=sys_inst)
+            )
+            return response.text
+        except Exception as e:
+            last_err = e
+            err_str = str(e)
+            if "503" in err_str or "UNAVAILABLE" in err_str or "high demand" in err_str:
+                wait_sec = (attempt + 1) * 4
+                time.sleep(wait_sec)
+                continue
+            else:
+                raise e
     raise last_err
 
 # メインヘッダー
@@ -479,9 +470,8 @@ with tab1:
                     
                     uploaded_file = client.files.upload(file=tmp_path)
                     
-                    # ロング動画の処理完了を待機（503防止）
                     wait_count = 0
-                    while uploaded_file.state.name == "PROCESSING" and wait_count < 30:
+                    while uploaded_file.state.name == "PROCESSING" and wait_count < 40:
                         time.sleep(3)
                         uploaded_file = client.files.get(name=uploaded_file.name)
                         wait_count += 1
@@ -507,7 +497,7 @@ with tab1:
                     if extras:
                         prompt += "\n【追加生成項目（字幕データの末尾に記載してください）】\n" + "\n".join(extras)
                         
-                    result_text = generate_with_smart_fallback(
+                    result_text = generate_with_retry(
                         client=client,
                         contents=[uploaded_file, prompt],
                         sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
@@ -575,7 +565,7 @@ with tab2:
                     if t_extras:
                         u_prompt += "\n\n末尾に以下を追加してください：\n" + "\n".join(t_extras)
                         
-                    res_text = generate_with_smart_fallback(
+                    res_text = generate_with_retry(
                         client=client,
                         contents=u_prompt,
                         sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
@@ -620,7 +610,7 @@ with tab3:
 3. **ナチュラル標準（誰にでも通じる自然な日常会話）**
 4. **解説（ニュアンスの違いを1行で）**
 """
-                    res_text = generate_with_smart_fallback(
+                    res_text = generate_with_retry(
                         client=client,
                         contents=single_prompt,
                         sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
