@@ -483,3 +483,414 @@ with st.sidebar:
             "👻 ホラー・怪談・ミステリー（情緒的・不穏・引き込まれる語り）",
             "💡 ビジネス・解説・教養（分かりやすく知的な口調）"
         ]
+    )
+    
+    custom_rule = st.text_area(
+        "個別ルール・固有名詞（任意）",
+        placeholder="例: 若者言葉を意識して。Hit me upは『連絡して！』のようにテンポ良く訳して。"
+    )
+
+def get_system_instruction(lang, genre, custom):
+    return f"""あなたは世界トップレベルの映像翻訳・ローカライズディレクターです。
+
+【最重要ミッション】
+「直訳」を徹底的に排除してください。
+直訳特有の硬さや不自然さをなくし、YouTubeやTikTokの視聴者が一瞬で理解して共感・笑える自然な表現（スラング、若者言葉、テンポの良い言い回し）に意訳してください。
+
+対象言語: {lang}
+動画ジャンル: {genre}
+ルール: {custom if custom else "なし"}
+"""
+
+def execute_with_auto_healing(client, contents, sys_inst):
+    active_models = discover_active_models(client)
+    last_exception = None
+    
+    for model_name in active_models:
+        for attempt in range(2):
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=contents,
+                    config=types.GenerateContentConfig(system_instruction=sys_inst)
+                )
+                return response.text
+            except Exception as e:
+                last_exception = e
+                err_str = str(e)
+                if "404" in err_str or "NOT_FOUND" in err_str:
+                    break
+                elif "503" in err_str or "UNAVAILABLE" in err_str:
+                    time.sleep(2)
+                    continue
+                else:
+                    break
+    raise last_exception
+
+# メインヘッダー
+st.markdown("""
+<div class="hero-container">
+    <div class="holo-wrapper">
+        <div class="holo-cube">
+            <div class="bot-head">
+                <div class="bot-eye"></div>
+                <div class="bot-eye"></div>
+                <div class="bot-blush-left"></div>
+                <div class="bot-blush-right"></div>
+            </div>
+        </div>
+        <div class="holo-base"></div>
+    </div>
+    <div class="hero-badge">⚡ 100% FREE AI CORE</div>
+    <div class="hero-title">TRANSLY PRO 完全無料ローカライズ</div>
+    <div class="hero-desc">追加課金・クレカ登録ゼロ！Google公式の完全無料枠で、動画直接投入から字幕SRT・タイトル案・サムネ英文まで一撃生成します。</div>
+</div>
+""", unsafe_allow_html=True)
+
+tab1, tab2, tab3 = st.tabs([
+    "🎬 【MODE 1】 動画・音声を直接投入（全自動）",
+    "📋 【MODE 2】 台本・SRT字幕コピペ翻訳",
+    "⚡ 【MODE 3】 1文クイック提案（テロップ/サムネ）"
+])
+
+# ----------------- モード1: 動画投入 -----------------
+with tab1:
+    st.markdown("""
+    <div class="card-box">
+        <div class="step-header">
+            <span class="step-pill">STEP 1</span>
+            <span class="step-title">動画または音声ファイルをアップロード（完全無料）</span>
+        </div>
+        <p style="font-size:0.88rem; color:#94A3B8; margin: 4px 0 0 0;">MP4 / MOV / MP3 などを入れるだけで、Geminiが直接動画・音声を認識してネイティブ字幕を生成します。</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    media_file = st.file_uploader("動画・音声ファイルをドロップ", type=["mp4", "mov", "mp3", "wav", "m4a"], key="u_media")
+    
+    st.markdown("##### ⚙️ 同時に作成するコンテンツを選択")
+    col_c1, col_c2, col_c3 = st.columns(3)
+    with col_c1:
+        opt_title = st.checkbox("🎯 クリック率特化タイトル案 (3選)", value=False)
+    with col_c2:
+        opt_thumb = st.checkbox("🖼️ サムネイル用キャッチコピー", value=False)
+    with col_c3:
+        opt_desc = st.checkbox("📝 概要欄 ＆ ハッシュタグ", value=False)
+        
+    btn_video = st.button("⚡ 無料AIで動画を解析・ローカライズ開始", type="primary", key="btn_v")
+    
+    active_key = gemini_key.strip() or st.session_state.gemini_api_key
+    
+    if btn_video:
+        if not active_key:
+            st.error("⚠️ 左側サイドバーにGoogle Geminiの無料APIキーを入力してください。")
+        elif not media_file:
+            st.warning("⚠️ 動画または音声ファイルをアップロードしてください。")
+        else:
+            with st.status("🤖 ホログラムAIが完全無料でメディアを処理中...", expanded=True) as status:
+                st.write("📦 1/3 ファイルを展開・一時保存中...")
+                mime_type = get_mime_type(media_file.name)
+                _, ext = os.path.splitext(media_file.name)
+                with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                    tmp.write(media_file.getvalue())
+                    tmp_path = tmp.name
+                
+                try:
+                    client = genai.Client(api_key=active_key)
+                    st.write("☁️ 2/3 Googleサーバーへ転送・インデックス待機中...")
+                    
+                    uploaded_file = client.files.upload(file=tmp_path)
+                    
+                    wait_count = 0
+                    while uploaded_file.state.name == "PROCESSING" and wait_count < 40:
+                        time.sleep(3)
+                        uploaded_file = client.files.get(name=uploaded_file.name)
+                        wait_count += 1
+                        
+                    if uploaded_file.state.name == "FAILED":
+                        raise ValueError("動画解析処理に失敗しました。")
+                    
+                    st.write("🌐 3/3 音声を解析し、字幕データを生成中...")
+                    
+                    prompt = f"""動画内の会話音声を認識し、以下の指示に従って出力してください。
+【厳格なフォーマット指示】
+1. 最初は必ず純粋なSRT字幕形式のみを出力してください（マークダウンの```srt記法や前置きの挨拶文は一切不要）。
+2. 各字幕は「番号」「タイムコード（00:00:00,000 --> 00:00:00,000）」「テキスト」の3行構成を厳守してください。
+3. 日本語の直訳を完全に避け、{target_lang}のYouTube/TikTokネイティブが使う自然な口語・スラングに意訳してください。
+"""
+                    extras = []
+                    if opt_title:
+                        extras.append("- 【クリック率特化タイトル案 3選】")
+                    if opt_thumb:
+                        extras.append("- 【サムネイル用キャッチコピー】")
+                    if opt_desc:
+                        extras.append("- 【概要欄・ハッシュタグ】")
+                        
+                    if extras:
+                        prompt += "\n【追加生成項目（※すべてのSRT字幕が終わった後に空行を空けて記載してください）】\n" + "\n".join(extras)
+                        
+                    raw_result = execute_with_auto_healing(
+                        client=client,
+                        contents=[uploaded_file, prompt],
+                        sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
+                    )
+                    status.update(label="✨ 完全無料でのローカライズが完了しました！", state="complete", expanded=False)
+                except Exception as e:
+                    st.error(f"エラー詳細: {e}")
+                    raw_result = ""
+                finally:
+                    if os.path.exists(tmp_path):
+                        os.remove(tmp_path)
+                        
+            if raw_result:
+                srt_data, meta_data = parse_srt_and_metadata(raw_result)
+                plain_text_data = srt_to_plain_text(srt_data)
+                base_name = os.path.splitext(media_file.name)[0]
+                
+                st.markdown("### 📥 保存形式の選択")
+                download_format = st.radio(
+                    "保存するファイル形式を選択してください：",
+                    [
+                        "🎬 Premiere Pro / CapCut 編集用 (.srt)",
+                        "📄 読み物・台本用プレーンテキスト (.txt)",
+                        "📦 両方（SRT ＆ TXT）"
+                    ],
+                    horizontal=True
+                )
+                
+                if "両方" in download_format:
+                    col_b1, col_b2 = st.columns(2)
+                    with col_b1:
+                        st.download_button(
+                            label="📥 編集用字幕 (.srt) を保存",
+                            data=srt_data,
+                            file_name=f"{base_name}_subtitles.srt",
+                            mime="application/x-subrip",
+                            use_container_width=True
+                        )
+                    with col_b2:
+                        st.download_button(
+                            label="📄 テキスト台本 (.txt) を保存",
+                            data=plain_text_data,
+                            file_name=f"{base_name}_script.txt",
+                            mime="text/plain",
+                            use_container_width=True
+                        )
+                elif ".srt" in download_format:
+                    st.download_button(
+                        label="📥 編集用字幕 (.srt) を保存 (Premiere / CapCut対応)",
+                        data=srt_data,
+                        file_name=f"{base_name}_subtitles.srt",
+                        mime="application/x-subrip",
+                        use_container_width=True
+                    )
+                else:
+                    st.download_button(
+                        label="📄 テキスト台本 (.txt) を保存 (タイムコードなし)",
+                        data=plain_text_data,
+                        file_name=f"{base_name}_script.txt",
+                        mime="text/plain",
+                        use_container_width=True
+                    )
+                
+                if meta_data:
+                    st.download_button(
+                        label="📝 YouTube運用メタデータ (.txt) を保存",
+                        data=meta_data,
+                        file_name=f"{base_name}_metadata.txt",
+                        mime="text/plain",
+                        use_container_width=True
+                    )
+                
+                st.markdown("#### プレビュー確認")
+                tab_p1, tab_p2 = st.tabs(["🎬 SRT字幕プレビュー", "📄 テキストプレビュー"])
+                with tab_p1:
+                    st.text_area("SRT Content", value=srt_data, height=240)
+                with tab_p2:
+                    st.text_area("Plain Text Content", value=plain_text_data, height=240)
+                
+                if meta_data:
+                    st.markdown("#### 📝 YouTube運用メタデータ")
+                    st.text_area("Metadata Content", value=meta_data, height=160)
+
+# ----------------- モード2: 台本コピペ -----------------
+with tab2:
+    st.markdown("""
+    <div class="card-box">
+        <div class="step-header">
+            <span class="step-pill">STEP 2</span>
+            <span class="step-title">台本テキストまたは既存SRT字幕を貼り付け</span>
+        </div>
+        <p style="font-size:0.88rem; color:#94A3B8; margin: 4px 0 0 0;">長文ストーリーや台本を貼るだけで、前後の文脈を汲み取った違和感のない翻訳へ変換します。</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    text_input_type = st.radio("入力するデータの形式", ["台本テキスト（通常の文章）", "SRT字幕ファイル（タイムコード付き）"], horizontal=True)
+    raw_text = st.text_area("台本またはSRT字幕をペースト", height=180, placeholder="テキストを貼り付けてください...")
+    
+    st.markdown("##### ⚙️ 同時に作成するコンテンツを選択")
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        opt_title_t = st.checkbox("🎯 タイトル案 (3選)", value=False, key="chk_tt")
+    with col_t2:
+        opt_thumb_t = st.checkbox("🖼️ サムネイル用キャッチコピー", value=False, key="chk_th")
+        
+    btn_text = st.button("🚀 無料AIでテキストをネイティブ意訳する", type="primary", key="btn_t")
+    
+    if btn_text:
+        if not active_key:
+            st.error("⚠️ 左側サイドバーにGoogle Geminiの無料APIキーを入力してください。")
+        elif not raw_text.strip():
+            st.warning("⚠️ テキストを入力してください。")
+        else:
+            with st.spinner("🤖 Geminiが文脈とスラングを考慮して自然に翻訳中..."):
+                try:
+                    client = genai.Client(api_key=active_key)
+                    if "SRT" in text_input_type:
+                        u_prompt = f"以下のSRT字幕のタイムコードを正確に維持し、テキスト部分のみを{target_lang}向けに自然に意訳してください。マークダウンの```記法や前置きは出力せず、純粋なSRT形式のみを出力してください:\n\n{raw_text}"
+                    else:
+                        u_prompt = f"以下の台本を、直訳を避けて{target_lang}のYouTube/TikTok向けに自然なテロップ調の口調に意訳してください。出力は前置き挨拶や見出し（【テロップ風の翻訳】等）は付けず、翻訳後の台本本文のみを出力してください:\n\n{raw_text}"
+                        
+                    t_extras = []
+                    if opt_title_t:
+                        t_extras.append("- 【クリック率特化タイトル案 3選】")
+                    if opt_thumb_t:
+                        t_extras.append("- 【サムネイル用キャッチコピー】")
+                    if t_extras:
+                        u_prompt += "\n\n末尾に以下を追加してください：\n" + "\n".join(t_extras)
+                        
+                    res_text = execute_with_auto_healing(
+                        client=client,
+                        contents=u_prompt,
+                        sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
+                    )
+                    
+                    # SRT入力の場合
+                    if "SRT" in text_input_type:
+                        s_part, m_part = parse_srt_and_metadata(res_text)
+                        plain_part = srt_to_plain_text(s_part)
+                    # 通常の台本テキスト入力の場合
+                    else:
+                        clean_res = re.sub(r'^【.*?】\s*', '', res_text.strip())
+                        meta_split = re.search(r'(\n(?:【.*?】|##|###|\*\*[^\n]+\*\*).*)', clean_res, re.DOTALL)
+                        if meta_split:
+                            plain_part = clean_res[:meta_split.start()].strip()
+                            m_part = meta_split.group(1).strip()
+                        else:
+                            plain_part = clean_res
+                            m_part = ""
+                        # 台本から自動タイムコード付きSRTを生成
+                        s_part = plain_text_to_srt(plain_part)
+                    
+                    st.markdown("### 📥 保存形式を選択")
+                    m2_format = st.radio(
+                        "保存形式：",
+                        [
+                            "🎬 Premiere Pro / CapCut 編集用 (.srt)",
+                            "📄 読み物・台本用プレーンテキスト (.txt)",
+                            "📦 両方（SRT ＆ TXT）"
+                        ],
+                        horizontal=True,
+                        key="rad_m2"
+                    )
+                    
+                    if "両方" in m2_format:
+                        col_sub1, col_sub2 = st.columns(2)
+                        with col_sub1:
+                            st.download_button(
+                                "📥 編集用字幕 (.srt) を保存",
+                                data=s_part,
+                                file_name="translated_subtitles.srt",
+                                mime="application/x-subrip",
+                                use_container_width=True
+                            )
+                        with col_sub2:
+                            st.download_button(
+                                "📄 台本テキスト (.txt) を保存",
+                                data=plain_part,
+                                file_name="translated_script.txt",
+                                mime="text/plain",
+                                use_container_width=True
+                            )
+                    elif ".srt" in m2_format:
+                        st.download_button(
+                            "📥 編集用字幕 (.srt) を保存 (Premiere / CapCut対応)",
+                            data=s_part,
+                            file_name="translated_subtitles.srt",
+                            mime="application/x-subrip",
+                            use_container_width=True
+                        )
+                    else:
+                        st.download_button(
+                            "📄 台本テキスト (.txt) を保存",
+                            data=plain_part,
+                            file_name="translated_script.txt",
+                            mime="text/plain",
+                            use_container_width=True
+                        )
+                        
+                    if m_part:
+                        st.download_button(
+                            "📝 YouTube運用メタデータ (.txt) を保存",
+                            data=m_part,
+                            file_name="translated_metadata.txt",
+                            mime="text/plain",
+                            use_container_width=True
+                        )
+                        
+                    st.markdown("#### プレビュー確認")
+                    tab_m1, tab_m2 = st.tabs(["📄 台本テキストプレビュー", "🎬 SRT字幕プレビュー"])
+                    with tab_m1:
+                        st.text_area("Script Preview", value=plain_part, height=220)
+                    with tab_m2:
+                        st.text_area("SRT Preview", value=s_part, height=220)
+                        
+                    if m_part:
+                        st.markdown("#### 📝 YouTube運用メタデータ")
+                        st.text_area("Metadata Preview", value=m_part, height=140)
+                        
+                except Exception as e:
+                    st.error(f"エラー詳細: {e}")
+
+# ----------------- モード3: 1文クイック -----------------
+with tab3:
+    st.markdown("""
+    <div class="card-box">
+        <div class="step-header">
+            <span class="step-pill">STEP 3</span>
+            <span class="step-title">1文クイック提案（テロップ・サムネイル用インパクト文字）</span>
+        </div>
+        <p style="font-size:0.88rem; color:#94A3B8; margin: 4px 0 0 0;">「これってネイティブなら何て言う？」を即座に解決。スラング・サムネ煽り・日常会話の3パターンを同時提案します。</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    single_phrase = st.text_input("翻訳したいフレーズを入力", placeholder="例: Hit me up / マジで許せないんだけど、これどう思う？")
+    btn_single = st.button("⚡ 複数の表現・スラングを提案", type="primary", key="btn_s")
+    
+    if btn_single:
+        if not active_key:
+            st.error("⚠️ 左側サイドバーにGoogle Geminiの無料APIキーを入力してください。")
+        elif not single_phrase.strip():
+            st.warning("⚠️ フレーズを入力してください。")
+        else:
+            with st.spinner("🤖 Geminiが複数の言い回しを考案中..."):
+                try:
+                    client = genai.Client(api_key=active_key)
+                    single_prompt = f"""以下のフレーズについて、直訳ではなくYouTubeネイティブが使う以下の4パターンを出力してください：
+フレーズ: 「{single_phrase}」
+対象言語: {target_lang}
+ジャンル: {channel_genre}
+
+1. **スラング・カジュアル（感情的・リアルな若者言葉）**
+2. **サムネイル用（2〜3単語で目立つ超短縮インパクト表現）**
+3. **ナチュラル標準（誰にでも通じる自然な日常会話）**
+4. **解説（ニュアンスの違いを1行で）**
+"""
+                    res_text = execute_with_auto_healing(
+                        client=client,
+                        contents=single_prompt,
+                        sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
+                    )
+                    st.markdown("### 💡 提案結果")
+                    st.markdown(res_text)
+                except Exception as e:
+                    st.error(f"エラー詳細: {e}")
