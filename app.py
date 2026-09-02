@@ -1,7 +1,5 @@
 """
-TRANSLY PRO | Gemini 100% Free Core Edition (High Contrast Result Box)
-- テキストエリア・出力結果エリアの文字色を純白＋高コントラスト化
-- 背景をダークネイビー＋ネオン枠にして文字視認性を最大化
+TRANSLY PRO | Gemini 100% Free Core Edition (Cyberpunk Seamless Header & Cute Holo-Bot)
 """
 
 import streamlit as st
@@ -18,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ホログラムサイバースタイルCSS（テキストエリア視認性強化版）
+# ホログラムサイバースタイルCSS（最上部ヘッダー完全統合版）
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+JP:wght@500;700;900&display=swap');
@@ -27,6 +25,30 @@ st.markdown("""
         font-family: 'Noto Sans JP', sans-serif;
     }
     
+    /* 最上部ヘッダーバーのサイバー化（白浮きの完全排除） */
+    header[data-testid="stHeader"] {
+        background: rgba(5, 8, 17, 0.85) !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
+        border-bottom: 1px solid rgba(0, 242, 254, 0.25) !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+    }
+    header[data-testid="stHeader"] * {
+        color: #38BDF8 !important;
+    }
+    header[data-testid="stHeader"] svg {
+        fill: #38BDF8 !important;
+        transition: all 0.2s ease;
+    }
+    header[data-testid="stHeader"] button:hover svg {
+        fill: #00F2FE !important;
+        filter: drop-shadow(0 0 8px #00F2FE);
+    }
+    [data-testid="stDecoration"] {
+        display: none !important;
+    }
+    
+    /* アプリ全体背景 */
     .stApp {
         background-color: #050811;
         background-image: 
@@ -39,7 +61,7 @@ st.markdown("""
         color: #E2E8F0;
     }
     
-    /* 入力欄・結果テキストエリア（白とび防止・高コントラスト） */
+    /* 入力欄・結果テキストエリア（高コントラスト） */
     textarea, [data-baseweb="textarea"] textarea {
         background-color: #090E1A !important;
         color: #F8FAFC !important;
@@ -55,14 +77,13 @@ st.markdown("""
         box-shadow: 0 0 12px rgba(0, 242, 254, 0.4) !important;
     }
     
-    /* テキストエリアのラベル */
     [data-testid="stTextArea"] label {
         color: #38BDF8 !important;
         font-weight: 700 !important;
         font-size: 1rem !important;
     }
     
-    /* サイドバー高視認性 */
+    /* 左サイドバー */
     [data-testid="stSidebar"] {
         background: rgba(6, 11, 24, 0.96) !important;
         border-right: 1px solid rgba(0, 242, 254, 0.2) !important;
@@ -86,6 +107,7 @@ st.markdown("""
         text-shadow: 0 0 12px rgba(0, 242, 254, 0.5);
     }
 
+    /* メインヘッダーカード */
     .hero-container {
         position: relative;
         background: linear-gradient(135deg, rgba(13, 22, 44, 0.8) 0%, rgba(8, 15, 30, 0.9) 100%);
@@ -99,21 +121,22 @@ st.markdown("""
         overflow: hidden;
     }
     
+    /* 可愛いサイバーボット構造 */
     .holo-wrapper {
         position: absolute;
-        right: 35px;
-        top: 15px;
+        right: 40px;
+        top: 14px;
         display: flex;
         flex-direction: column;
         align-items: center;
         pointer-events: none;
     }
     .holo-cube {
-        width: 100px;
-        height: 100px;
+        width: 106px;
+        height: 106px;
         position: relative;
         border: 2px solid rgba(0, 242, 254, 0.6);
-        border-radius: 12px;
+        border-radius: 16px;
         box-shadow: 0 0 25px rgba(0, 242, 254, 0.35), inset 0 0 20px rgba(0, 242, 254, 0.2);
         animation: holoFloat 3.8s ease-in-out infinite alternate;
         display: flex;
@@ -121,27 +144,56 @@ st.markdown("""
         justify-content: center;
         background: rgba(0, 242, 254, 0.04);
     }
-    .holo-eyes {
-        font-size: 2.8rem;
-        filter: drop-shadow(0 0 12px #00F2FE);
-        animation: pulseEye 2s infinite;
+    .bot-head {
+        width: 76px;
+        height: 62px;
+        background: linear-gradient(145deg, #1E293B, #0F172A);
+        border-radius: 18px;
+        border: 2px solid #38BDF8;
+        box-shadow: 0 0 15px rgba(0, 242, 254, 0.4), inset 0 2px 4px rgba(255,255,255,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        position: relative;
     }
+    .bot-eye {
+        width: 18px;
+        height: 24px;
+        background: radial-gradient(circle, #FFFFFF 20%, #00F2FE 70%, #0284C7 100%);
+        border-radius: 50%;
+        box-shadow: 0 0 14px #00F2FE, 0 0 24px #38BDF8;
+        animation: botBlink 3.8s infinite ease-in-out;
+    }
+    .bot-blush-left, .bot-blush-right {
+        position: absolute;
+        bottom: 8px;
+        width: 8px;
+        height: 4px;
+        background: rgba(244, 114, 182, 0.75);
+        border-radius: 50%;
+        filter: blur(1px);
+    }
+    .bot-blush-left { left: 8px; }
+    .bot-blush-right { right: 8px; }
+    
     .holo-base {
-        width: 120px;
+        width: 124px;
         height: 14px;
-        background: linear-gradient(90deg, #64748B, #CBD5E1, #64748B);
-        border-radius: 4px;
+        background: linear-gradient(90deg, #64748B, #E2E8F0, #64748B);
+        border-radius: 5px;
         margin-top: 10px;
-        box-shadow: 0 0 20px rgba(0, 242, 254, 0.5);
+        box-shadow: 0 0 18px rgba(0, 242, 254, 0.5);
     }
     
     @keyframes holoFloat {
-        0% { transform: translateY(0px) scale(1); }
-        100% { transform: translateY(-10px) scale(1.02); }
+        0% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-8px) rotate(2deg); }
+        100% { transform: translateY(-12px) rotate(-2deg); }
     }
-    @keyframes pulseEye {
-        0%, 100% { opacity: 0.85; filter: drop-shadow(0 0 8px #00F2FE); }
-        50% { opacity: 1; filter: drop-shadow(0 0 18px #38BDF8); }
+    @keyframes botBlink {
+        0%, 90%, 100% { transform: scaleY(1); }
+        95% { transform: scaleY(0.08); }
     }
 
     .hero-badge {
@@ -174,9 +226,10 @@ st.markdown("""
         color: #94A3B8;
         line-height: 1.6;
         margin: 0;
-        max-width: 78%;
+        max-width: 76%;
     }
     
+    /* タブ */
     .stTabs [data-baseweb="tab-list"] {
         gap: 14px;
         background-color: rgba(10, 18, 38, 0.7);
@@ -351,12 +404,17 @@ def generate_with_retry(client, contents, sys_inst, max_retries=3):
                 raise e
     raise last_err
 
-# メインヘッダー
+# メインヘッダー（可愛いサイバーボット搭載）
 st.markdown("""
 <div class="hero-container">
     <div class="holo-wrapper">
         <div class="holo-cube">
-            <div class="holo-eyes">👀</div>
+            <div class="bot-head">
+                <div class="bot-eye"></div>
+                <div class="bot-eye"></div>
+                <div class="bot-blush-left"></div>
+                <div class="bot-blush-right"></div>
+            </div>
         </div>
         <div class="holo-base"></div>
     </div>
