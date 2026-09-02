@@ -1,9 +1,9 @@
 """
-TRANSLY PRO | AI Video Localize Studio
-デザイン全面改修版：
-1. 「STEP 1」のバッジ文字ズレ・重なりをCSSのflexレイアウトで完全修正
-2. 左サイドバーの文字色をくっきり白（#FFFFFF）＆水色アクセント（#93C5FD）にして視認性抜群に
-3. 背景：可愛いAIミニロボットが一生懸命データを運んだり処理しているアニメーションCSS背景（軽量・動くパーティクル＋浮遊ロボットギミック）
+TRANSLY PRO | AI Hologram Core Edition
+- 提示されたホログラムAIロボットの世界観を完全再現
+- サイバー・データベース空間でホログラムロボットがパルス発光しながら浮遊するアニメーション
+- 高度なネオンシアン（#00F2FE）アクセント ＆ グラスモーフィズムUI
+- 視認性を極限まで高めたUI・ボタン・タブ
 """
 
 import streamlit as st
@@ -13,157 +13,198 @@ import os
 import tempfile
 
 st.set_page_config(
-    page_title="TRANSLY PRO | AI動画ローカライズ",
+    page_title="TRANSLY PRO | AI Hologram Studio",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# カスタムCSS：動く可愛いAIロボット背景 ＆ 視認性改善 ＆ バッジ崩れ修正
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=M+PLUS+Rounded+1c:wght@500;700;800;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+JP:wght@500;700;900&display=swap');
     
     html, body, [class*="css"] {
-        font-family: 'Montserrat', 'M PLUS Rounded 1c', sans-serif;
+        font-family: 'Noto Sans JP', sans-serif;
     }
     
-    /* 全体背景：ハイテクかつ可愛いAIデータグリッド調 */
+    /* 深層サイバーラボ背景 */
     .stApp {
-        background-color: #0A0F1D;
+        background-color: #050811;
         background-image: 
-            radial-gradient(at 10% 10%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-            radial-gradient(at 90% 90%, rgba(236, 72, 153, 0.15) 0px, transparent 50%),
-            linear-gradient(rgba(10, 15, 29, 0.92), rgba(15, 23, 42, 0.95)),
-            url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop');
+            radial-gradient(circle at 85% 15%, rgba(0, 242, 254, 0.12) 0%, transparent 40%),
+            radial-gradient(circle at 15% 85%, rgba(79, 172, 254, 0.1) 0%, transparent 45%),
+            linear-gradient(rgba(5, 8, 17, 0.92), rgba(8, 14, 28, 0.96)),
+            url('https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=2670&auto=format&fit=crop');
         background-size: cover;
         background-attachment: fixed;
-        color: #F8FAFC;
+        color: #E2E8F0;
     }
     
-    /* 左サイドバー：文字色を完全クリアな白にして視認性大幅アップ */
+    /* サイドバー高視認性デザイン */
     [data-testid="stSidebar"] {
-        background-color: rgba(15, 23, 42, 0.96) !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.15) !important;
+        background: rgba(6, 11, 24, 0.96) !important;
+        border-right: 1px solid rgba(0, 242, 254, 0.2) !important;
+        box-shadow: 10px 0 25px rgba(0, 0, 0, 0.5);
     }
     [data-testid="stSidebar"] label, 
     [data-testid="stSidebar"] .stMarkdown p,
     [data-testid="stSidebar"] span {
         color: #FFFFFF !important;
         font-weight: 700 !important;
-        font-size: 0.95rem !important;
+        font-size: 0.93rem !important;
     }
     [data-testid="stSidebar"] .stCaption {
-        color: #93C5FD !important;
+        color: #7DD3FC !important;
         font-weight: 500 !important;
     }
     [data-testid="stSidebar"] h3 {
-        color: #60A5FA !important;
-        letter-spacing: 0.05em;
+        font-family: 'Orbitron', sans-serif !important;
+        color: #00F2FE !important;
+        letter-spacing: 0.08em;
+        text-shadow: 0 0 12px rgba(0, 242, 254, 0.5);
     }
 
-    /* ヘッダーバナーと動くマスコットロボット */
+    /* メインヘッダーカード */
     .hero-container {
         position: relative;
-        background: rgba(30, 41, 59, 0.65);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        border-radius: 20px;
-        padding: 30px 36px;
-        color: white;
+        background: linear-gradient(135deg, rgba(13, 22, 44, 0.8) 0%, rgba(8, 15, 30, 0.9) 100%);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(0, 242, 254, 0.35);
+        border-radius: 22px;
+        padding: 34px 44px;
         margin-bottom: 24px;
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
         overflow: hidden;
     }
     
-    /* ふわふわ浮いてデータを処理する可愛いAIロボットギミック */
-    .floating-bot {
+    /* ホログラム投影ロボットアニメーション */
+    .holo-wrapper {
         position: absolute;
-        right: 28px;
-        top: 20px;
-        font-size: 3.6rem;
-        animation: floatBot 3.5s ease-in-out infinite;
-        filter: drop-shadow(0 10px 15px rgba(99, 102, 241, 0.6));
+        right: 35px;
+        top: 15px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        pointer-events: none;
     }
-    @keyframes floatBot {
-        0%, 100% { transform: translateY(0px) rotate(0deg); }
-        50% { transform: translateY(-12px) rotate(5deg); }
+    .holo-cube {
+        width: 100px;
+        height: 100px;
+        position: relative;
+        border: 2px solid rgba(0, 242, 254, 0.6);
+        border-radius: 12px;
+        box-shadow: 0 0 25px rgba(0, 242, 254, 0.35), inset 0 0 20px rgba(0, 242, 254, 0.2);
+        animation: holoFloat 3.8s ease-in-out infinite alternate;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 242, 254, 0.04);
+    }
+    .holo-eyes {
+        font-size: 2.8rem;
+        filter: drop-shadow(0 0 12px #00F2FE);
+        animation: pulseEye 2s infinite;
+    }
+    .holo-base {
+        width: 120px;
+        height: 14px;
+        background: linear-gradient(90deg, #64748B, #CBD5E1, #64748B);
+        border-radius: 4px;
+        margin-top: 10px;
+        box-shadow: 0 0 20px rgba(0, 242, 254, 0.5);
     }
     
+    @keyframes holoFloat {
+        0% { transform: translateY(0px) scale(1); }
+        100% { transform: translateY(-10px) scale(1.02); }
+    }
+    @keyframes pulseEye {
+        0%, 100% { opacity: 0.85; filter: drop-shadow(0 0 8px #00F2FE); }
+        50% { opacity: 1; filter: drop-shadow(0 0 18px #38BDF8); }
+    }
+
     .hero-badge {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        background: linear-gradient(90deg, #3B82F6 0%, #8B5CF6 100%);
-        color: #FFFFFF;
+        font-family: 'Orbitron', sans-serif;
+        background: rgba(0, 242, 254, 0.12);
+        border: 1px solid rgba(0, 242, 254, 0.45);
+        color: #38BDF8;
         font-size: 0.8rem;
-        font-weight: 900;
-        padding: 5px 14px;
+        font-weight: 800;
+        padding: 5px 15px;
         border-radius: 9999px;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.1em;
         margin-bottom: 12px;
-        box-shadow: 0 0 16px rgba(59, 130, 246, 0.5);
+        box-shadow: 0 0 15px rgba(0, 242, 254, 0.25);
     }
     .hero-title {
-        font-size: 2.1rem;
+        font-family: 'Orbitron', 'Noto Sans JP', sans-serif;
+        font-size: 2.2rem;
         font-weight: 900;
-        letter-spacing: -0.01em;
         margin: 0 0 8px 0;
-        color: #FFFFFF;
+        background: linear-gradient(90deg, #FFFFFF 0%, #BAE6FD 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
     .hero-desc {
-        font-size: 0.95rem;
-        color: #CBD5E1;
+        font-size: 0.94rem;
+        color: #94A3B8;
         line-height: 1.6;
         margin: 0;
-        max-width: 82%;
+        max-width: 78%;
     }
     
-    /* タブの極太・ネオン立体デザイン */
+    /* タブデザイン（極太・近未来発光） */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 12px;
-        background-color: rgba(15, 23, 42, 0.75);
+        gap: 14px;
+        background-color: rgba(10, 18, 38, 0.7);
         backdrop-filter: blur(12px);
         padding: 8px;
         border-radius: 14px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(0, 242, 254, 0.25);
     }
     .stTabs [data-baseweb="tab"] {
         border-radius: 10px;
-        padding: 12px 26px;
+        padding: 12px 28px;
         font-weight: 900 !important;
-        font-size: 0.96rem !important;
-        color: #94A3B8;
+        font-size: 0.98rem !important;
+        letter-spacing: 0.04em;
+        color: #64748B;
         background: transparent;
         border: none !important;
         transition: all 0.25s ease;
     }
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%) !important;
-        color: #FFFFFF !important;
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.5) !important;
+        background: linear-gradient(135deg, #00F2FE 0%, #4FACFE 100%) !important;
+        color: #050811 !important;
+        font-weight: 900 !important;
+        box-shadow: 0 0 25px rgba(0, 242, 254, 0.55) !important;
     }
 
-    /* STEPバッジの文字ズレ・縦並びを完全修正 */
+    /* ステップバッジ */
     .step-header {
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
     }
     .step-pill {
+        font-family: 'Orbitron', sans-serif;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         padding: 4px 14px;
         border-radius: 20px;
-        background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
-        color: #FFFFFF;
-        font-size: 0.85rem;
+        background: linear-gradient(135deg, #00F2FE 0%, #4FACFE 100%);
+        color: #050811;
+        font-size: 0.82rem;
         font-weight: 900;
+        letter-spacing: 0.05em;
         white-space: nowrap;
-        box-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);
+        box-shadow: 0 0 12px rgba(0, 242, 254, 0.4);
     }
     .step-title {
         font-size: 1.1rem;
@@ -171,42 +212,43 @@ st.markdown("""
         color: #FFFFFF;
     }
     
-    /* カードボックス */
     .card-box {
-        background: rgba(30, 41, 59, 0.65);
+        background: rgba(13, 22, 44, 0.65);
         backdrop-filter: blur(14px);
         border-radius: 16px;
         padding: 22px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(0, 242, 254, 0.18);
         margin-bottom: 20px;
     }
 
-    /* 実行ボタン */
+    /* 実行ボタン（ホログラム・ネオンシアン） */
     div.stButton > button:first-child {
-        background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
-        color: white;
+        font-family: 'Orbitron', 'Noto Sans JP', sans-serif;
+        background: linear-gradient(135deg, #00F2FE 0%, #0072FF 100%);
+        color: #050811;
         border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        padding: 0.75rem 1.8rem;
+        border: none;
+        padding: 0.8rem 2rem;
         font-size: 1.05rem;
         font-weight: 900 !important;
-        box-shadow: 0 4px 20px 0 rgba(99, 102, 241, 0.4);
-        transition: all 0.2s ease;
+        letter-spacing: 0.04em;
+        box-shadow: 0 4px 25px rgba(0, 242, 254, 0.45);
+        transition: all 0.25s ease;
         width: 100%;
         margin-top: 10px;
     }
     div.stButton > button:first-child:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 25px 0 rgba(99, 102, 241, 0.6);
-        border: 1px solid rgba(255, 255, 255, 0.4);
+        box-shadow: 0 6px 35px rgba(0, 242, 254, 0.65);
+        filter: brightness(1.08);
     }
 </style>
 """, unsafe_allow_html=True)
 
-# サイドバー設計（視認性向上・高コントラスト）
+# サイドバー設計
 with st.sidebar:
-    st.markdown("### ⚡ SYSTEM & API KEYS")
-    st.caption("🔒 キーはブラウザ内でのみ安全に利用され、外部に保存されません。")
+    st.markdown("### ⚡ SYSTEM & KEYS")
+    st.caption("🔒 キーはお客様のブラウザ内でのみ安全に利用され、外部に保存されません。")
     
     openai_key = st.text_input("🔑 OpenAI API Key (音声文字起こし・AI)", type="password", placeholder="sk-...")
     engine = st.selectbox(
@@ -222,7 +264,7 @@ with st.sidebar:
         model_name = "gpt-4o"
         
     st.divider()
-    st.markdown("### 🌐 LOCALIZE SETTINGS")
+    st.markdown("### 🌐 LOCALIZE CORE")
     
     target_lang = st.selectbox(
         "翻訳先言語",
@@ -253,7 +295,6 @@ with st.sidebar:
         placeholder="例: 主人公の『イッチ』はフランクに。専門用語『○○』は訳さずそのままアルファベット表記にして。"
     )
 
-# プロンプト生成（日本人が納得する超自然なローカライズ）
 def get_system_prompt(lang, genre, custom):
     return f"""あなたは世界トップレベルのYouTube専属ローカライズ・映像翻訳ディレクターです。
 
@@ -266,7 +307,7 @@ def get_system_prompt(lang, genre, custom):
 【個別ルール】: {custom if custom else "特になし"}
 
 【翻訳方針】
-1. **文脈優先の意訳**: 日本語独特の相槌（「えーと」「マジで」「あり得ないんだけど」）や感情のニュアンスを、ネイティブが直感的に笑える・共感できるスラングや慣用表現に変換してください。
+1. **文脈優先の意訳**: 日本語独特の相槌や感情のニュアンスを、ネイティブが直感的に笑える・共感できるスラングや慣用表現に変換してください。
 2. **文字数・テンポの配慮**: 動画内で視聴者が0.5秒〜1秒で読めるよう、無駄に長い文構造を避け、パンチのある言葉を選んでください。
 3. **字幕形式の保護**: SRTデータの場合、番号とタイムコード（00:00:00,000 --> 00:00:00,000）は絶対に1文字も崩さず、テキスト部分のみを入れ替えてください。
 """
@@ -311,13 +352,18 @@ def transcribe_media(file_bytes, file_ext, key):
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
-# メインヘッダー（可愛い動くAIロボットアニメーション付き）
+# メインヘッダー（ホログラムロボット投影UI）
 st.markdown("""
 <div class="hero-container">
-    <div class="floating-bot">🤖✨</div>
-    <div class="hero-badge">⚡ NEXT-GEN AI STUDIO</div>
-    <div class="hero-title">TRANSLY PRO 映像・字幕ローカライズ</div>
-    <div class="hero-desc">直訳を徹底排除。ネイティブのYouTubeスラングや自然な感情表現に完全意訳。<br>動画から直接字幕SRT・海外向けタイトル3選・概要欄・サムネ用英文まで一撃生成します。</div>
+    <div class="holo-wrapper">
+        <div class="holo-cube">
+            <div class="holo-eyes">👀</div>
+        </div>
+        <div class="holo-base"></div>
+    </div>
+    <div class="hero-badge">⚡ CYBERNETIC AI CORE</div>
+    <div class="hero-title">TRANSLY PRO 映像ローカライズ</div>
+    <div class="hero-desc">直訳を完全排除。ネイティブYouTubeスラングや自然な口語表現に完全意訳。<br>動画から直接字幕SRT・海外向けタイトル3選・概要欄・サムネ用英文まで一撃生成します。</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -346,7 +392,7 @@ with tab1:
     with col_opt1:
         gen_meta_video = st.checkbox("🎯 海外向けタイトル3案・概要欄・サムネ用コピーも同時生成する", value=True)
         
-    btn_video = st.button("🚀 動画から全自動でローカライズ字幕を一括生成", type="primary", key="btn_v")
+    btn_video = st.button("⚡ ホログラムAIで動画を自動解析・翻訳開始", type="primary", key="btn_v")
     
     if btn_video:
         if not openai_key:
@@ -356,7 +402,7 @@ with tab1:
         elif not media_file:
             st.warning("⚠️ 動画または音声ファイルをアップロードしてください。")
         else:
-            with st.status("🤖 AIロボットが動画を高速データ解析中...", expanded=True) as status:
+            with st.status("🤖 ホログラムAIが動画ストリームを高速処理中...", expanded=True) as status:
                 st.write("🎙️ 1/3 Whisperによる音声の自動文字起こし中...")
                 _, ext = os.path.splitext(media_file.name)
                 raw_srt = transcribe_media(media_file.getvalue(), ext, openai_key)
@@ -425,7 +471,7 @@ with tab2:
     raw_text = st.text_area("台本またはSRT字幕をペースト", height=180, placeholder="テキストを貼り付けてください...")
     
     gen_meta_text = st.checkbox("この台本からYouTube用タイトル・サムネ案も同時作成する", value=False, key="chk_m2")
-    btn_text = st.button("🚀 テキストをネイティブ意訳する", type="primary", key="btn_t")
+    btn_text = st.button("⚡ テキストをネイティブ意訳する", type="primary", key="btn_t")
     
     if btn_text:
         if not raw_text.strip():
@@ -435,7 +481,7 @@ with tab2:
         elif "GPT-4o" in engine and not openai_key:
             st.error("⚠️ 左側サイドバーに「OpenAI API Key」を入力してください。")
         else:
-            with st.spinner("🤖 AIが文脈とニュアンスを分析し、自然な表現に翻訳中..."):
+            with st.spinner("🤖 ホログラムAIが文脈を高速解析中..."):
                 sys_p = get_system_prompt(target_lang, channel_genre, custom_rule)
                 if "SRT" in text_input_type:
                     u_prompt = f"以下のSRT字幕のタイムコードを1文字も崩さず、テキスト部分のみをネイティブ向けに自然に翻訳してください:\n\n{raw_text}"
