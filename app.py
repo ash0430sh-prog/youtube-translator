@@ -1,5 +1,7 @@
 """
-TRANSLY PRO | Gemini Next-Gen API Edition (Updated to gemini-3.6-flash)
+TRANSLY PRO | Gemini 100% Free Core Edition (Custom Component Selector)
+- タイトル案・サムネコピー・概要欄の個別ON/OFF選択に対応
+- 字幕のみの高速出力から運用パック一括出力まで柔軟に切り替え可能
 """
 
 import streamlit as st
@@ -7,6 +9,7 @@ from google import genai
 from google.genai import types
 import tempfile
 import os
+import time
 
 st.set_page_config(
     page_title="TRANSLY PRO | 完全無料 AI動画ローカライズ",
@@ -235,7 +238,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-MODEL_NAME = "gemini-3.6-flash"
+CANDIDATE_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"]
 
 def get_mime_type(file_name):
     ext = file_name.split('.')[-1].lower()
@@ -304,6 +307,27 @@ def get_system_instruction(lang, genre, custom):
 ルール: {custom if custom else "なし"}
 """
 
+def generate_with_fallback(client, contents, sys_inst):
+    last_err = None
+    for model_name in CANDIDATE_MODELS:
+        for attempt in range(2):
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=contents,
+                    config=types.GenerateContentConfig(system_instruction=sys_inst)
+                )
+                return response.text
+            except Exception as e:
+                last_err = e
+                err_str = str(e)
+                if "503" in err_str or "UNAVAILABLE" in err_str or "high demand" in err_str:
+                    time.sleep(2)
+                    continue
+                else:
+                    break
+    raise last_err
+
 # メインヘッダー
 st.markdown("""
 <div class="hero-container">
@@ -338,8 +362,17 @@ with tab1:
     """, unsafe_allow_html=True)
     
     media_file = st.file_uploader("動画・音声ファイルをドロップ", type=["mp4", "mov", "mp3", "wav", "m4a"], key="u_media")
-    gen_meta_video = st.checkbox("🎯 引きの強いタイトル3案・概要欄・サムネ用コピーも同時生成する", value=True)
-    btn_video = st.button("⚡ 無料AIで動画を自動解析・翻訳開始", type="primary", key="btn_v")
+    
+    st.markdown("##### ⚙️ 同時に作成するコンテンツを選択")
+    col_c1, col_c2, col_c3 = st.columns(3)
+    with col_c1:
+        opt_title = st.checkbox("🎯 クリック率特化タイトル案 (3選)", value=False)
+    with col_c2:
+        opt_thumb = st.checkbox("🖼️ サムネイル用キャッチコピー", value=False)
+    with col_c3:
+        opt_desc = st.checkbox("📝 概要欄 ＆ ハッシュタグ", value=False)
+        
+    btn_video = st.button("⚡ 無料AIで動画を解析・ローカライズ開始", type="primary", key="btn_v")
     
     if btn_video:
         if not gemini_key:
@@ -357,29 +390,31 @@ with tab1:
                 
                 try:
                     client = genai.Client(api_key=gemini_key.strip())
-                    st.write("🌐 2/2 音声を解析し、超自然な字幕(SRT)＆メタデータを生成中...")
+                    st.write("🌐 2/2 音声を解析し、指定されたコンテンツを生成中...")
                     
                     uploaded_file = client.files.upload(file=tmp_path)
                     
                     prompt = f"""動画内の会話音声を認識し、以下の指示に従って出力してください。
+【必須項目】
 1. 直訳を完全に避け、{target_lang}のYouTube/TikTok視聴者がスッと理解できる自然な口語・スラングに意訳したSRT字幕データを出力してください。
 2. タイムコード（00:00:00,000 --> 00:00:00,000）を正確に付与してください。
 """
-                    if gen_meta_video:
-                        prompt += """
-3. さらに動画の最後（または字幕の後）に、以下のコンテンツを記載してください：
-- 【クリック率特化タイトル案 3選】
-- 【サムネイル用キャッチコピー（2〜4単語のインパクト文字）】
-- 【概要欄・ハッシュタグ】
-"""
-                    response = client.models.generate_content(
-                        model=MODEL_NAME,
+                    extras = []
+                    if opt_title:
+                        extras.append("- 【クリック率特化タイトル案 3選】")
+                    if opt_thumb:
+                        extras.append("- 【サムネイル用キャッチコピー（2〜4単語の短いインパクト文字）】")
+                    if opt_desc:
+                        extras.append("- 【概要欄・ハッシュタグ】")
+                        
+                    if extras:
+                        prompt += "\n【追加生成項目（字幕データの末尾に記載してください）】\n" + "\n".join(extras)
+                        
+                    result_text = generate_with_fallback(
+                        client=client,
                         contents=[uploaded_file, prompt],
-                        config=types.GenerateContentConfig(
-                            system_instruction=get_system_instruction(target_lang, channel_genre, custom_rule)
-                        )
+                        sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
                     )
-                    result_text = response.text
                     status.update(label="✨ 完全無料でのローカライズが完了しました！", state="complete", expanded=False)
                 except Exception as e:
                     st.error(f"エラー詳細: {e}")
@@ -390,7 +425,7 @@ with tab1:
                         
             if result_text:
                 st.markdown("### 📥 生成された結果")
-                st.text_area("Gemini Output (SRT & Metadata)", value=result_text, height=350)
+                st.text_area("Gemini Output", value=result_text, height=350)
                 st.download_button(
                     "💾 結果データをダウンロード (.srt / .txt)",
                     data=result_text,
@@ -411,7 +446,14 @@ with tab2:
     
     text_input_type = st.radio("入力するデータの形式", ["台本テキスト（通常の文章）", "SRT字幕ファイル（タイムコード付き）"], horizontal=True)
     raw_text = st.text_area("台本またはSRT字幕をペースト", height=180, placeholder="テキストを貼り付けてください...")
-    gen_meta_text = st.checkbox("この台本からタイトル・サムネ案も同時作成する", value=False, key="chk_m2")
+    
+    st.markdown("##### ⚙️ 同時に作成するコンテンツを選択")
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        opt_title_t = st.checkbox("🎯 タイトル案 (3選)", value=False, key="chk_tt")
+    with col_t2:
+        opt_thumb_t = st.checkbox("🖼️ サムネイル用キャッチコピー", value=False, key="chk_th")
+        
     btn_text = st.button("🚀 無料AIでテキストをネイティブ意訳する", type="primary", key="btn_t")
     
     if btn_text:
@@ -427,19 +469,23 @@ with tab2:
                         u_prompt = f"以下のSRT字幕のタイムコードを崩さず、テキスト部分のみを{target_lang}向けに自然に意訳してください:\n\n{raw_text}"
                     else:
                         u_prompt = f"以下の台本を、直訳を避けて{target_lang}向けに自然な口調に翻訳してください:\n\n{raw_text}"
-                    if gen_meta_text:
-                        u_prompt += "\n\nさらにクリックされるタイトル3案とサムネ用コピーを末尾に提案してください。"
                         
-                    response = client.models.generate_content(
-                        model=MODEL_NAME,
+                    t_extras = []
+                    if opt_title_t:
+                        t_extras.append("- 【クリック率特化タイトル案 3選】")
+                    if opt_thumb_t:
+                        t_extras.append("- 【サムネイル用キャッチコピー】")
+                    if t_extras:
+                        u_prompt += "\n\n末尾に以下を追加してください：\n" + "\n".join(t_extras)
+                        
+                    res_text = generate_with_fallback(
+                        client=client,
                         contents=u_prompt,
-                        config=types.GenerateContentConfig(
-                            system_instruction=get_system_instruction(target_lang, channel_genre, custom_rule)
-                        )
+                        sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
                     )
                     st.markdown("### 📥 翻訳結果")
-                    st.text_area("Translated Output", value=response.text, height=280)
-                    st.download_button("💾 翻訳結果を保存 (.txt)", data=response.text, file_name="translated_script.txt")
+                    st.text_area("Translated Output", value=res_text, height=280)
+                    st.download_button("💾 翻訳結果を保存 (.txt)", data=res_text, file_name="translated_script.txt")
                 except Exception as e:
                     st.error(f"エラー詳細: {e}")
 
@@ -477,14 +523,12 @@ with tab3:
 3. **ナチュラル標準（誰にでも通じる自然な日常会話）**
 4. **解説（ニュアンスの違いを1行で）**
 """
-                    response = client.models.generate_content(
-                        model=MODEL_NAME,
+                    res_text = generate_with_fallback(
+                        client=client,
                         contents=single_prompt,
-                        config=types.GenerateContentConfig(
-                            system_instruction=get_system_instruction(target_lang, channel_genre, custom_rule)
-                        )
+                        sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
                     )
                     st.markdown("### 💡 提案結果")
-                    st.markdown(response.text)
+                    st.markdown(res_text)
                 except Exception as e:
                     st.error(f"エラー詳細: {e}")
