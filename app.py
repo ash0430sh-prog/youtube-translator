@@ -5,12 +5,14 @@ TRANSLY PRO | AI Video Localization System
 - 3D Core Interface
 - Freemium License Protection (Stripe + Supabase Integration)
 - Direct Free API Key Guidance & Japanese Localization Targets Included
-- 3-Mode Architecture (MODE 1: PRO Video, MODE 2: Text/Sub, MODE 3: YouTube URL)
+- 3-Mode Architecture & Auto-Generated Cyberspace Slide Banner
 """
 
 import streamlit as st
 import streamlit.components.v1 as components
 import json
+import os
+from PIL import Image, ImageDraw, ImageFont
 
 # ページ基本設定
 st.set_page_config(
@@ -33,26 +35,70 @@ if "saved_gemini_key" not in st.session_state:
 # ==========================================
 STRIPE_PAYMENT_URL = "https://buy.stripe.com/aFacN72GA4KiaIb9T46sw00"
 
-# 共通CSSスタイル（サイバーパンク完全ダークテーマ ＆ 視認性改善）
+# ==========================================
+# ガイド＆料金スライド画像を自動生成する関数
+# ==========================================
+def generate_slide_banner():
+    img_width, img_height = 1000, 420
+    img = Image.new("RGBA", (img_width, img_height), (10, 16, 35, 255))
+    draw = ImageDraw.Draw(img)
+
+    # ネオン調の外枠を描画
+    draw.rectangle([10, 10, img_width - 10, img_height - 10], outline=(0, 242, 254, 180), width=2)
+    
+    # 区切り線（縦）
+    draw.line([(330, 30), (330, img_height - 30)], fill=(0, 242, 254, 60), width=1)
+    draw.line([(665, 30), (665, img_height - 30)], fill=(0, 242, 254, 60), width=1)
+
+    try:
+        font_title = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial Bold.ttf", 20)
+        font_sub = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial.ttf", 15)
+        font_step = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial Bold.ttf", 26)
+    except:
+        font_title = ImageFont.load_default()
+        font_sub = ImageFont.load_default()
+        font_step = ImageFont.load_default()
+
+    # スライド1: STEP 1
+    draw.text((45, 35), "STEP 01", fill=(0, 242, 254, 255), font=font_step)
+    draw.text((45, 85), "Gemini APIキー設定", fill=(255, 255, 255, 255), font=font_title)
+    draw.text((45, 130), "Google AI Studioから\n完全無料のAPIキーを取得し\nサイドバーに入力・保存します。", fill=(148, 163, 184, 255), font=font_sub)
+
+    # スライド2: STEP 2
+    draw.text((365, 35), "STEP 02", fill=(0, 242, 254, 255), font=font_step)
+    draw.text((365, 85), "モードを選ぶ・翻訳", fill=(255, 255, 255, 255), font=font_title)
+    draw.text((365, 130), "MODE 2（テキスト翻訳）や\nMODE 3（YouTube URL解析）は\nいつでも無料で使えます。", fill=(148, 163, 184, 255), font=font_sub)
+
+    # スライド3: STEP 3 (PRO)
+    draw.text((700, 35), "STEP 03", fill=(255, 0, 127, 255), font=font_step)
+    draw.text((700, 85), "PROプランで全開放", fill=(255, 255, 255, 255), font=font_title)
+    draw.text((700, 130), "長尺動画の音声抽出・翻訳\n(MODE 1) を利用するには\n初月無料プランへ登録！", fill=(148, 163, 184, 255), font=font_sub)
+
+    # フッター文言
+    draw.draw = draw
+    draw.text((45, 360), "⚡ TRANSLY PRO // All-in-One AI Localization System", fill=(0, 242, 254, 150), font=font_sub)
+
+    path = "slide_guide.png"
+    img.save(path)
+    return path
+
+# 共通CSSスタイル
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;600;800&display=swap');
     
-    /* アプリ全体背景 */
     .stApp {
         background: radial-gradient(circle at 50% 10%, #0c162d 0%, #050811 80%);
         color: #E2E8F0;
         font-family: 'Noto Sans JP', sans-serif;
     }
 
-    /* 🚀 Streamlit上部ヘッダーのサイバー化 */
     header[data-testid="stHeader"] {
         background: linear-gradient(90deg, #090e1b 0%, #0d162d 50%, #050811 100%) !important;
         border-bottom: 1px solid rgba(0, 242, 254, 0.3) !important;
         box-shadow: 0 2px 15px rgba(0, 242, 254, 0.15) !important;
     }
 
-    /* ヘッダー内のアイコンやボタン等の色調整 */
     header[data-testid="stHeader"] *, 
     header[data-testid="stHeader"] span, 
     header[data-testid="stHeader"] svg {
@@ -60,14 +106,12 @@ st.markdown("""
         fill: #7DD3FC !important;
     }
 
-    /* 🌙 サイドバーの完全ダーク・サイバーカラー化 */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #090e1b 0%, #050811 100%) !important;
         border-right: 1px solid rgba(0, 242, 254, 0.25) !important;
         box-shadow: 4px 0 20px rgba(0, 0, 0, 0.6);
     }
     
-    /* サイドバー内のテキスト全般の視認性アップ */
     [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
     [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3,
     [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h4,
@@ -76,7 +120,6 @@ st.markdown("""
         font-family: 'Noto Sans JP', sans-serif;
     }
 
-    /* キャプション・薄い文字のコントラスト強化 */
     [data-testid="stSidebar"] .stCaptionContainer p,
     [data-testid="stSidebar"] small {
         color: #94A3B8 !important;
@@ -87,7 +130,6 @@ st.markdown("""
         border-color: rgba(0, 242, 254, 0.18) !important;
     }
 
-    /* 入力フォームのサイバー調スタイル */
     [data-testid="stSidebar"] input,
     [data-testid="stSidebar"] select,
     [data-testid="stSidebar"] textarea,
@@ -103,7 +145,6 @@ st.markdown("""
         box-shadow: 0 0 10px rgba(0, 242, 254, 0.4) !important;
     }
 
-    /* サイドバーのボタン */
     [data-testid="stSidebar"] button {
         background: #0f1c36 !important;
         color: #7DD3FC !important;
@@ -171,7 +212,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 3D AI Robot コンポーネント
-def render_cyber_robot(height=280):
+def render_cyber_robot(height=260):
     robot_html = f"""
     <!DOCTYPE html>
     <html>
@@ -277,13 +318,9 @@ with st.sidebar:
     st.markdown("<p style='color:#94A3B8; font-size:0.85rem; margin-top:-10px;'>v2.5 // Cyber AI Localization Engine</p>", unsafe_allow_html=True)
     st.markdown("---")
 
-    # API設定 ＆ 保存・削除機能
     st.markdown("#### 🔑 Gemini API 設定")
-    
-    # 入力フィールド
     temp_key = st.text_input("Gemini API Key", value=st.session_state.saved_gemini_key, type="password", placeholder="AIzaSy...", help="Google AI StudioのAPIキーを入力してください")
     
-    # 保存・削除ボタンの配置
     col_api1, col_api2 = st.columns(2)
     with col_api1:
         if st.button("💾 キーを保存"):
@@ -296,7 +333,6 @@ with st.sidebar:
             st.success("APIキーを削除しました。")
             st.rerun()
 
-    # 有効なキーの取得元（保存されていればそちらを優先）
     gemini_key = st.session_state.saved_gemini_key
 
     if gemini_key:
@@ -314,13 +350,11 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("#### ⚡ PRO LICENSE")
 
-    # プラン状態表示
     if st.session_state.is_pro:
         st.markdown('<div class="pro-badge">PRO PLAN ACTIVE ⚡</div>', unsafe_allow_html=True)
     else:
         st.markdown('<div class="free-badge">FREE PLAN (RESTRICTED)</div>', unsafe_allow_html=True)
         
-        # Stripe決済・初月無料ボタン
         st.markdown(
             f"""
             <a href="{STRIPE_PAYMENT_URL}" target="_blank" style="text-decoration: none;">
@@ -342,9 +376,8 @@ with st.sidebar:
             """,
             unsafe_allow_html=True
         )
-        st.markdown("<p style='color:#94A3B8; font-size:0.78rem; text-align:center;'>※ クーポンコード入力で初回30日間¥0</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color:#94A3B8; font-size:0.78rem; text-align:center;'>※ 初回30日間¥0で全機能使い放題</p>", unsafe_allow_html=True)
 
-    # ライセンスキー入力フォーム
     license_input = st.text_input("ライセンスキー認証", placeholder="PRO-XXXX-XXXX")
     if st.button("ライセンスを適用"):
         if verify_license(license_input):
@@ -358,36 +391,33 @@ with st.sidebar:
 # メイン画面（中央集約レイアウト）
 # ==========================================
 
-# 1. ヘッダータイトル（画面中央）
 st.markdown("""
     <div style="text-align: center; margin-top: 5px; margin-bottom: 5px;">
-        <h1 style="color:#FFFFFF; font-family:'Orbitron', sans-serif; font-size: 2.8rem; letter-spacing: 2px; margin-bottom: 4px;">
+        <h1 style="color:#FFFFFF; font-family:'Orbitron', sans-serif; font-size: 2.6rem; letter-spacing: 2px; margin-bottom: 4px;">
             TRANSLY <span style="color:#00F2FE; text-shadow: 0 0 15px rgba(0, 242, 254, 0.6);">PRO</span>
         </h1>
-        <p style="color:#94A3B8; font-size: 1rem; margin: 0;">
+        <p style="color:#94A3B8; font-size: 0.95rem; margin: 0;">
             次世代AIによる超高速・高精度動画ローカライゼーションシステム
         </p>
     </div>
 """, unsafe_allow_html=True)
 
-# 2. 3Dコア（画面中央）
-render_cyber_robot(height=280)
+render_cyber_robot(height=240)
 
-# 3. 機能・課金タブ（3Dコア直下に3段構成で展開）
-tab1, tab2, tab3 = st.tabs([
+# 機能タブ
+tab1, tab2, tab3, tab4 = st.tabs([
     "🚀 MODE 1: フル動画・音声翻訳（PRO）", 
     "⚡ MODE 2: クイック字幕・テキスト翻訳",
-    "🌐 MODE 3: YouTube URL 直接ローカライズ"
+    "🌐 MODE 3: YouTube URL 直接ローカライズ",
+    "📖 使い方ガイド ＆ 料金プラン"
 ])
 
-# ----------------------------------------------------
-# MODE 1: フル動画・音声翻訳（PRO限定）
-# ----------------------------------------------------
+# MODE 1
 with tab1:
     if not st.session_state.is_pro:
         st.markdown(
             f"""
-            <div class="cyber-lock-box" style="max-width: 800px; margin: 25px auto;">
+            <div class="cyber-lock-box" style="max-width: 800px; margin: 20px auto;">
                 <h3 style="color: #FF007F; margin-bottom: 10px; font-family: 'Orbitron', sans-serif; letter-spacing: 1px;">
                     🔒 MODE 1: PRO FEATURE LOCKED
                 </h3>
@@ -415,15 +445,13 @@ with tab1:
             unsafe_allow_html=True
         )
     else:
-        st.success("⚡ PRO機能が開放されています。動画または音声をアップロードしてください。")
+        st.success("⚡ PRO機能が有効化されています。動画または音声をアップロードしてください。")
         uploaded_video = st.file_uploader("動画・音声ファイルを選択 (MP4, MP3, WAV)", type=["mp4", "mp3", "wav"])
         if uploaded_video:
             st.info(f"📁 読み込み完了: {uploaded_video.name}")
             st.button("AI一括翻訳・ローカライズを実行", type="primary")
 
-# ----------------------------------------------------
-# MODE 2: クイック字幕・テキスト翻訳
-# ----------------------------------------------------
+# MODE 2
 with tab2:
     st.markdown("#### テキスト・字幕ローカライズ")
     source_text = st.text_area("翻訳元のテキストまたは字幕文", height=140, placeholder="ここにスクリプトや字幕を入力...")
@@ -439,9 +467,7 @@ with tab2:
             st.markdown(f"**[{target_lang} 翻訳結果]**")
             st.info(f"Translated: {source_text}")
 
-# ----------------------------------------------------
-# MODE 3: YouTube URL 直接ローカライズ
-# ----------------------------------------------------
+# MODE 3
 with tab3:
     st.markdown("#### 🌐 YouTube 動画URLから直接抽出・翻訳")
     youtube_url = st.text_input("YouTube動画URLを入力", placeholder="https://www.youtube.com/watch?v=...")
@@ -460,3 +486,62 @@ with tab3:
                 st.warning("⚠️ サイドバーでGemini APIキーを入力してください。")
             else:
                 st.info("YouTube動画のメタデータおよび字幕ストリームを解析中...")
+
+# 📖 使い方ガイド ＆ 料金プラン（自動生成スライド画像＋料金表）
+with tab4:
+    st.markdown("### 📖 TRANSLY PRO ご利用ガイド & 料金プラン")
+    
+    # スライド画像を生成して表示
+    slide_path = generate_slide_banner()
+    st.image(slide_path, use_container_width=True)
+    
+    st.markdown("---")
+    
+    # 料金プラン比較セクション
+    price_col1, price_col2 = st.columns(2)
+    
+    with price_col1:
+        st.markdown("""
+            <div style="background: rgba(13, 22, 44, 0.6); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 10px; padding: 22px; text-align: center;">
+                <h4 style="color: #94A3B8; margin-bottom: 5px;">FREE PLAN</h4>
+                <h2 style="color: #FFFFFF; font-size: 1.8rem; margin: 10px 0;">¥0 <span style="font-size: 0.9rem; font-weight: normal; color: #94A3B8;">/ ずっと無料</span></h2>
+                <hr style="border-color: rgba(148, 163, 184, 0.2); margin: 15px 0;">
+                <p style="font-size: 0.88rem; color: #CBD5E1; text-align: left; line-height: 1.6;">
+                    ✅ MODE 2（テキスト翻訳）利用可能<br>
+                    ✅ MODE 3（YouTube URL解析）利用可能<br>
+                    ❌ フル動画・音声抽出（MODE 1）はロック
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+    with price_col2:
+        st.markdown(
+            f"""
+            <div style="background: linear-gradient(135deg, rgba(13, 22, 44, 0.9) 0%, rgba(20, 10, 35, 0.95) 100%); border: 2px solid #FF007F; border-radius: 10px; padding: 22px; text-align: center; box-shadow: 0 0 20px rgba(255, 0, 127, 0.25);">
+                <h4 style="color: #FF007F; margin-bottom: 5px; font-family: Orbitron;">⚡ TRANSLY PRO</h4>
+                <h2 style="color: #FFFFFF; font-size: 1.8rem; margin: 10px 0;">¥1,500 <span style="font-size: 0.9rem; font-weight: normal; color: #94A3B8;">/ 月 (税別)</span></h2>
+                <p style="color: #00F2FE; font-size: 0.8rem; font-weight: bold; margin-bottom: 10px;">🎉 初回30日間は完全無料でお試し可能！</p>
+                <hr style="border-color: rgba(255, 0, 127, 0.3); margin: 15px 0;">
+                <p style="font-size: 0.88rem; color: #CBD5E1; text-align: left; line-height: 1.6;">
+                    🔥 MODE 1（長尺動画・音声一括翻訳）が無制限<br>
+                    🔥 高精度Whisper解析 & SRT自動生成<br>
+                    🔥 クレカ / Apple Pay / Google Pay 対応
+                </p>
+                <a href="{STRIPE_PAYMENT_URL}" target="_blank" style="text-decoration: none; display: block; margin-top: 15px;">
+                    <span style="
+                        background: linear-gradient(135deg, #FF007F 0%, #7928CA 100%);
+                        color: #FFFFFF;
+                        font-weight: 800;
+                        padding: 10px 20px;
+                        border-radius: 6px;
+                        font-size: 0.9rem;
+                        box-shadow: 0 0 15px rgba(255, 0, 127, 0.4);
+                        display: block;
+                    ">
+                        🚀 初月無料でPROプランに登録
+                    </span>
+                </a>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
