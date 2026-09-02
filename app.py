@@ -1,5 +1,5 @@
 """
-TRANSLY PRO | Gemini Next-Gen API Edition (AQ... & AIza... Both Supported)
+TRANSLY PRO | Gemini Next-Gen API Edition (Updated to gemini-3.6-flash)
 """
 
 import streamlit as st
@@ -235,6 +235,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+MODEL_NAME = "gemini-3.6-flash"
+
 def get_mime_type(file_name):
     ext = file_name.split('.')[-1].lower()
     mime_map = {
@@ -371,7 +373,7 @@ with tab1:
 - 【概要欄・ハッシュタグ】
 """
                     response = client.models.generate_content(
-                        model="gemini-2.5-flash",
+                        model=MODEL_NAME,
                         contents=[uploaded_file, prompt],
                         config=types.GenerateContentConfig(
                             system_instruction=get_system_instruction(target_lang, channel_genre, custom_rule)
@@ -429,7 +431,7 @@ with tab2:
                         u_prompt += "\n\nさらにクリックされるタイトル3案とサムネ用コピーを末尾に提案してください。"
                         
                     response = client.models.generate_content(
-                        model="gemini-2.5-flash",
+                        model=MODEL_NAME,
                         contents=u_prompt,
                         config=types.GenerateContentConfig(
                             system_instruction=get_system_instruction(target_lang, channel_genre, custom_rule)
@@ -476,7 +478,7 @@ with tab3:
 4. **解説（ニュアンスの違いを1行で）**
 """
                     response = client.models.generate_content(
-                        model="gemini-2.5-flash",
+                        model=MODEL_NAME,
                         contents=single_prompt,
                         config=types.GenerateContentConfig(
                             system_instruction=get_system_instruction(target_lang, channel_genre, custom_rule)
