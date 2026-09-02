@@ -1,8 +1,8 @@
 """
-TRANSLY PRO | Universal SRT & TXT Format Selector
-- 台本テキスト入力時でも「編集用SRT字幕 / 読み物用TXT / 両方」を選択可能
-- Geminiが文章量に応じて自然なタイムコードを自動配分
-- Premiere Pro / CapCut 等のタイムラインへ即座に配置可能
+TRANSLY PRO | State-Preserving Multi-Format Translator
+- 翻訳結果を st.session_state に永続保持
+- 保存形式（SRT / TXT / 両方）を何度切り替えても翻訳結果が消えない完全対応
+- 編集用クリーンSRT / テキスト台本の自由ダウンロード
 """
 
 import streamlit as st
@@ -21,8 +21,13 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# セッション状態の初期化（再描画されても消えないように保持）
 if "gemini_api_key" not in st.session_state:
     st.session_state.gemini_api_key = ""
+if "m1_result" not in st.session_state:
+    st.session_state.m1_result = None
+if "m2_result" not in st.session_state:
+    st.session_state.m2_result = None
 
 # ホログラムサイバースタイルCSS
 st.markdown("""
@@ -577,7 +582,6 @@ with tab1:
         opt_desc = st.checkbox("📝 概要欄 ＆ ハッシュタグ", value=False)
         
     btn_video = st.button("⚡ 無料AIで動画を解析・ローカライズ開始", type="primary", key="btn_v")
-    
     active_key = gemini_key.strip() or st.session_state.gemini_api_key
     
     if btn_video:
@@ -633,84 +637,91 @@ with tab1:
                         contents=[uploaded_file, prompt],
                         sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
                     )
+                    
+                    # 翻訳結果をセッション状態に保存（リロードされても消えないように保持）
+                    srt_data, meta_data = parse_srt_and_metadata(raw_result)
+                    st.session_state.m1_result = {
+                        "srt_data": srt_data,
+                        "plain_text_data": srt_to_plain_text(srt_data),
+                        "meta_data": meta_data,
+                        "base_name": os.path.splitext(media_file.name)[0]
+                    }
                     status.update(label="✨ 完全無料でのローカライズが完了しました！", state="complete", expanded=False)
                 except Exception as e:
                     st.error(f"エラー詳細: {e}")
-                    raw_result = ""
                 finally:
                     if os.path.exists(tmp_path):
                         os.remove(tmp_path)
                         
-            if raw_result:
-                srt_data, meta_data = parse_srt_and_metadata(raw_result)
-                plain_text_data = srt_to_plain_text(srt_data)
-                base_name = os.path.splitext(media_file.name)[0]
-                
-                st.markdown("### 📥 保存形式の選択")
-                download_format = st.radio(
-                    "保存するファイル形式を選択してください：",
-                    [
-                        "🎬 Premiere Pro / CapCut 編集用 (.srt)",
-                        "📄 読み物・台本用プレーンテキスト (.txt)",
-                        "📦 両方（SRT ＆ TXT）"
-                    ],
-                    horizontal=True
+    # セッション内にデータがあれば常時描画（ラジオボタンを切り替えても消えない）
+    if st.session_state.m1_result:
+        res = st.session_state.m1_result
+        st.markdown("### 📥 保存形式の選択")
+        download_format = st.radio(
+            "保存するファイル形式を選択してください：",
+            [
+                "🎬 Premiere Pro / CapCut 編集用 (.srt)",
+                "📄 読み物・台本用プレーンテキスト (.txt)",
+                "📦 両方（SRT ＆ TXT）"
+            ],
+            horizontal=True,
+            key="rad_m1_persistent"
+        )
+        
+        if "両方" in download_format:
+            col_b1, col_b2 = st.columns(2)
+            with col_b1:
+                st.download_button(
+                    label="📥 編集用字幕 (.srt) を保存",
+                    data=res["srt_data"],
+                    file_name=f"{res['base_name']}_subtitles.srt",
+                    mime="application/x-subrip",
+                    use_container_width=True
                 )
-                
-                if "両方" in download_format:
-                    col_b1, col_b2 = st.columns(2)
-                    with col_b1:
-                        st.download_button(
-                            label="📥 編集用字幕 (.srt) を保存",
-                            data=srt_data,
-                            file_name=f"{base_name}_subtitles.srt",
-                            mime="application/x-subrip",
-                            use_container_width=True
-                        )
-                    with col_b2:
-                        st.download_button(
-                            label="📄 テキスト台本 (.txt) を保存",
-                            data=plain_text_data,
-                            file_name=f"{base_name}_script.txt",
-                            mime="text/plain",
-                            use_container_width=True
-                        )
-                elif ".srt" in download_format:
-                    st.download_button(
-                        label="📥 編集用字幕 (.srt) を保存 (Premiere / CapCut対応)",
-                        data=srt_data,
-                        file_name=f"{base_name}_subtitles.srt",
-                        mime="application/x-subrip",
-                        use_container_width=True
-                    )
-                else:
-                    st.download_button(
-                        label="📄 テキスト台本 (.txt) を保存 (タイムコードなし)",
-                        data=plain_text_data,
-                        file_name=f"{base_name}_script.txt",
-                        mime="text/plain",
-                        use_container_width=True
-                    )
-                
-                if meta_data:
-                    st.download_button(
-                        label="📝 YouTube運用メタデータ (.txt) を保存",
-                        data=meta_data,
-                        file_name=f"{base_name}_metadata.txt",
-                        mime="text/plain",
-                        use_container_width=True
-                    )
-                
-                st.markdown("#### プレビュー確認")
-                tab_p1, tab_p2 = st.tabs(["🎬 SRT字幕プレビュー", "📄 テキストプレビュー"])
-                with tab_p1:
-                    st.text_area("SRT Content", value=srt_data, height=240)
-                with tab_p2:
-                    st.text_area("Plain Text Content", value=plain_text_data, height=240)
-                
-                if meta_data:
-                    st.markdown("#### 📝 YouTube運用メタデータ")
-                    st.text_area("Metadata Content", value=meta_data, height=160)
+            with col_b2:
+                st.download_button(
+                    label="📄 テキスト台本 (.txt) を保存",
+                    data=res["plain_text_data"],
+                    file_name=f"{res['base_name']}_script.txt",
+                    mime="text/plain",
+                    use_container_width=True
+                )
+        elif ".srt" in download_format:
+            st.download_button(
+                label="📥 編集用字幕 (.srt) を保存 (Premiere / CapCut対応)",
+                data=res["srt_data"],
+                file_name=f"{res['base_name']}_subtitles.srt",
+                mime="application/x-subrip",
+                use_container_width=True
+            )
+        else:
+            st.download_button(
+                label="📄 テキスト台本 (.txt) を保存 (タイムコードなし)",
+                data=res["plain_text_data"],
+                file_name=f"{res['base_name']}_script.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+        
+        if res["meta_data"]:
+            st.download_button(
+                label="📝 YouTube運用メタデータ (.txt) を保存",
+                data=res["meta_data"],
+                file_name=f"{res['base_name']}_metadata.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+        
+        st.markdown("#### プレビュー確認")
+        tab_p1, tab_p2 = st.tabs(["🎬 SRT字幕プレビュー", "📄 テキストプレビュー"])
+        with tab_p1:
+            st.text_area("SRT Content", value=res["srt_data"], height=240)
+        with tab_p2:
+            st.text_area("Plain Text Content", value=res["plain_text_data"], height=240)
+        
+        if res["meta_data"]:
+            st.markdown("#### 📝 YouTube運用メタデータ")
+            st.text_area("Metadata Content", value=res["meta_data"], height=160)
 
 # ----------------- モード2: 台本コピペ -----------------
 with tab2:
@@ -764,11 +775,9 @@ with tab2:
                         sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
                     )
                     
-                    # SRT入力の場合
                     if "SRT" in text_input_type:
                         s_part, m_part = parse_srt_and_metadata(res_text)
                         plain_part = srt_to_plain_text(s_part)
-                    # 通常の台本テキスト入力の場合
                     else:
                         clean_res = re.sub(r'^【.*?】\s*', '', res_text.strip())
                         meta_split = re.search(r'(\n(?:【.*?】|##|###|\*\*[^\n]+\*\*).*)', clean_res, re.DOTALL)
@@ -778,78 +787,86 @@ with tab2:
                         else:
                             plain_part = clean_res
                             m_part = ""
-                        # 台本から自動タイムコード付きSRTを生成
                         s_part = plain_text_to_srt(plain_part)
                     
-                    st.markdown("### 📥 保存形式を選択")
-                    m2_format = st.radio(
-                        "保存形式：",
-                        [
-                            "🎬 Premiere Pro / CapCut 編集用 (.srt)",
-                            "📄 読み物・台本用プレーンテキスト (.txt)",
-                            "📦 両方（SRT ＆ TXT）"
-                        ],
-                        horizontal=True,
-                        key="rad_m2"
-                    )
-                    
-                    if "両方" in m2_format:
-                        col_sub1, col_sub2 = st.columns(2)
-                        with col_sub1:
-                            st.download_button(
-                                "📥 編集用字幕 (.srt) を保存",
-                                data=s_part,
-                                file_name="translated_subtitles.srt",
-                                mime="application/x-subrip",
-                                use_container_width=True
-                            )
-                        with col_sub2:
-                            st.download_button(
-                                "📄 台本テキスト (.txt) を保存",
-                                data=plain_part,
-                                file_name="translated_script.txt",
-                                mime="text/plain",
-                                use_container_width=True
-                            )
-                    elif ".srt" in m2_format:
-                        st.download_button(
-                            "📥 編集用字幕 (.srt) を保存 (Premiere / CapCut対応)",
-                            data=s_part,
-                            file_name="translated_subtitles.srt",
-                            mime="application/x-subrip",
-                            use_container_width=True
-                        )
-                    else:
-                        st.download_button(
-                            "📄 台本テキスト (.txt) を保存",
-                            data=plain_part,
-                            file_name="translated_script.txt",
-                            mime="text/plain",
-                            use_container_width=True
-                        )
-                        
-                    if m_part:
-                        st.download_button(
-                            "📝 YouTube運用メタデータ (.txt) を保存",
-                            data=m_part,
-                            file_name="translated_metadata.txt",
-                            mime="text/plain",
-                            use_container_width=True
-                        )
-                        
-                    st.markdown("#### プレビュー確認")
-                    tab_m1, tab_m2 = st.tabs(["📄 台本テキストプレビュー", "🎬 SRT字幕プレビュー"])
-                    with tab_m1:
-                        st.text_area("Script Preview", value=plain_part, height=220)
-                    with tab_m2:
-                        st.text_area("SRT Preview", value=s_part, height=220)
-                        
-                    if m_part:
-                        st.markdown("#### 📝 YouTube運用メタデータ")
-                        st.text_area("Metadata Preview", value=m_part, height=140)
-                        
+                    # 翻訳結果をセッション状態に保存（ラジオ切り替えで消えるのを防止）
+                    st.session_state.m2_result = {
+                        "s_part": s_part,
+                        "plain_part": plain_part,
+                        "m_part": m_part
+                    }
                 except Exception as e:
                     st.error(f"エラー詳細: {e}")
+                    
+    # セッション内にデータがあれば常時描画（ラジオボタンを切り替えても消えない）
+    if st.session_state.m2_result:
+        res2 = st.session_state.m2_result
+        st.markdown("### 📥 保存形式を選択")
+        m2_format = st.radio(
+            "保存形式：",
+            [
+                "🎬 Premiere Pro / CapCut 編集用 (.srt)",
+                "📄 読み物・台本用プレーンテキスト (.txt)",
+                "📦 両方（SRT ＆ TXT）"
+            ],
+            horizontal=True,
+            key="rad_m2_persistent"
+        )
+        
+        if "両方" in m2_format:
+            col_sub1, col_sub2 = st.columns(2)
+            with col_sub1:
+                st.download_button(
+                    "📥 編集用字幕 (.srt) を保存",
+                    data=res2["s_part"],
+                    file_name="translated_subtitles.srt",
+                    mime="application/x-subrip",
+                    use_container_width=True
+                )
+            with col_sub2:
+                st.download_button(
+                    "📄 台本テキスト (.txt) を保存",
+                    data=res2["plain_part"],
+                    file_name="translated_script.txt",
+                    mime="text/plain",
+                    use_container_width=True
+                )
+        elif ".srt" in m2_format:
+            st.download_button(
+                "📥 編集用字幕 (.srt) を保存 (Premiere / CapCut対応)",
+                data=res2["s_part"],
+                file_name="translated_subtitles.srt",
+                mime="application/x-subrip",
+                use_container_width=True
+            )
+        else:
+            st.download_button(
+                "📄 台本テキスト (.txt) を保存",
+                data=res2["plain_part"],
+                file_name="translated_script.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+            
+        if res2["m_part"]:
+            st.download_button(
+                "📝 YouTube運用メタデータ (.txt) を保存",
+                data=res2["m_part"],
+                file_name="translated_metadata.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+            
+        st.markdown("#### プレビュー確認")
+        tab_m1, tab_m2 = st.tabs(["📄 台本テキストプレビュー", "🎬 SRT字幕プレビュー"])
+        with tab_m1:
+            st.text_area("Script Preview", value=res2["plain_part"], height=220)
+        with tab_m2:
+            st.text_area("SRT Preview", value=res2["s_part"], height=220)
+            
+        if res2["m_part"]:
+            st.markdown("#### 📝 YouTube運用メタデータ")
+            st.text_area("Metadata Preview", value=res2["m_part"], height=140)
 
 # ----------------- モード3: 1文クイック -----------------
 with tab3:
