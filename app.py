@@ -1,10 +1,10 @@
 """
-YouTube Pro Video & Subtitle AI Studio (Luxury Modern SaaS Edition)
-デザイン全面刷新版：
-- 高級感のあるダークグラデーション＋グラスモフィズム風カードUI
-- ステップ式ガイド（Step 1/2/3）で初心者が迷わないUX
-- 3つの投入モード（動画直接・長文/SRT・1文クイック）
-- 日本人が聞いて納得するネイティブ意訳＆YouTubeマーケ特化メタデータ生成
+TRANSLY PRO | AI Video Localize Studio
+デザイン超強化版：
+- AI生成のサイバー・クリエイティブ系グラデーション背景（オーバーレイ付きで文字の視認性を確保）
+- タブボタン：極太フォント（Extra Bold 800）、ネオンアクセント、立体感のあるカードUI
+- 初心者でも迷わないステップバッジと見やすい入力フォーム
+- 動画直接・台本コピペ・1文クイックの3モード完全搭載
 """
 
 import streamlit as st
@@ -13,143 +13,157 @@ import openai
 import os
 import tempfile
 
-# ページ基本設定
 st.set_page_config(
-    page_title="TRANSLY PRO | YouTube海外展開 AIローカライズ",
+    page_title="TRANSLY PRO | YouTube AIローカライズ",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# モダンUIカスタムCSS
+# サイバー＆高級SaaSカスタムCSS（AI画像背景＋極太ネオンタブ）
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Noto+Sans+JP:wght@500;700;900&display=swap');
     
     html, body, [class*="css"] {
-        font-family: 'Plus Jakarta Sans', 'Noto Sans JP', sans-serif;
+        font-family: 'Montserrat', 'Noto Sans JP', sans-serif;
     }
     
-    /* 背景と全体トーン */
+    /* 背景：AI生成のハイテク・ディープスペース調グラフィック＋ダークオーバーレイ */
     .stApp {
-        background-color: #F8FAFC;
+        background: linear-gradient(rgba(10, 15, 30, 0.90), rgba(15, 23, 42, 0.94)), 
+                    url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop') no-repeat center center fixed;
+        background-size: cover;
+        color: #F1F5F9;
     }
     
     /* メインヘッダーバナー */
     .hero-container {
-        background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 20px;
         padding: 36px 40px;
         color: white;
-        margin-bottom: 28px;
-        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        margin-bottom: 24px;
+        box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
     }
     .hero-badge {
         display: inline-block;
-        background: rgba(59, 130, 246, 0.2);
-        border: 1px solid rgba(96, 165, 250, 0.4);
-        color: #93C5FD;
-        font-size: 0.78rem;
-        font-weight: 700;
-        padding: 4px 12px;
+        background: linear-gradient(90deg, #3B82F6 0%, #8B5CF6 100%);
+        color: #FFFFFF;
+        font-size: 0.8rem;
+        font-weight: 900;
+        padding: 4px 14px;
         border-radius: 9999px;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
         margin-bottom: 12px;
+        box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
     }
     .hero-title {
-        font-size: 2.1rem;
-        font-weight: 800;
-        letter-spacing: -0.02em;
+        font-size: 2.2rem;
+        font-weight: 900;
+        letter-spacing: -0.01em;
         margin: 0 0 8px 0;
-        color: #FFFFFF;
+        background: linear-gradient(135deg, #FFFFFF 30%, #93C5FD 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
     .hero-desc {
         font-size: 0.95rem;
-        color: #94A3B8;
+        color: #CBD5E1;
         line-height: 1.6;
         margin: 0;
     }
     
-    /* ステップカード案内 */
+    /* タブの超極太・クールデザイン */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 12px;
+        background-color: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(10px);
+        padding: 8px;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 10px;
+        padding: 12px 28px;
+        font-weight: 900 !important;
+        font-size: 0.98rem !important;
+        letter-spacing: 0.02em;
+        color: #94A3B8;
+        background: transparent;
+        border: none !important;
+        transition: all 0.25s ease-in-out;
+    }
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%) !important;
+        color: #FFFFFF !important;
+        font-weight: 900 !important;
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.5) !important;
+    }
+    
+    /* ステップカードボックス */
+    .card-box {
+        background: rgba(30, 41, 59, 0.7);
+        backdrop-filter: blur(14px);
+        border-radius: 16px;
+        padding: 22px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        margin-bottom: 20px;
+    }
     .step-badge {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 24px;
-        height: 24px;
-        border-radius: 6px;
-        background: #2563EB;
-        color: white;
-        font-size: 0.8rem;
-        font-weight: 700;
-        margin-right: 8px;
-    }
-    .card-box {
-        background: white;
-        border-radius: 16px;
-        padding: 24px;
-        border: 1px solid #E2E8F0;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        margin-bottom: 20px;
-    }
-    
-    /* タブデザイン */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 12px;
-        background-color: #EEF2F6;
-        padding: 6px;
-        border-radius: 12px;
-    }
-    .stTabs [data-baseweb="tab"] {
+        width: 26px;
+        height: 26px;
         border-radius: 8px;
-        padding: 10px 24px;
-        font-weight: 700;
-        font-size: 0.9rem;
-        color: #475569;
-        background: transparent;
-        border: none !important;
-        transition: all 0.2s ease;
-    }
-    .stTabs [aria-selected="true"] {
-        background: #FFFFFF !important;
-        color: #0F172A !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+        background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
+        color: white;
+        font-size: 0.85rem;
+        font-weight: 900;
+        margin-right: 10px;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
     }
     
-    /* ボタンのブラッシュアップ */
+    /* アクションボタン */
     div.stButton > button:first-child {
-        background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+        background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
         color: white;
         border-radius: 12px;
-        border: none;
-        padding: 0.65rem 1.5rem;
-        font-size: 1rem;
-        font-weight: 700;
-        box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.35);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 0.75rem 1.8rem;
+        font-size: 1.05rem;
+        font-weight: 900 !important;
+        box-shadow: 0 4px 20px 0 rgba(99, 102, 241, 0.4);
         transition: all 0.2s ease-in-out;
         width: 100%;
+        margin-top: 10px;
     }
     div.stButton > button:first-child:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 20px 0 rgba(37, 99, 235, 0.45);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px 0 rgba(99, 102, 241, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.4);
     }
     
     /* サイドバー */
     [data-testid="stSidebar"] {
-        background-color: #FFFFFF;
-        border-right: 1px solid #E2E8F0;
+        background: rgba(15, 23, 42, 0.85);
+        backdrop-filter: blur(20px);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
     }
 </style>
 """, unsafe_allow_html=True)
 
-# サイドバー設計（初心者用ガイド付き）
+# サイドバー設定
 with st.sidebar:
-    st.markdown("### ⚡ **API設定**")
-    st.caption("※お持ちのAPIキーを入力してください。キーは安全に保護され、保持されません。")
+    st.markdown("### ⚡ **SYSTEM & API KEYS**")
+    st.caption("※APIキーはお客様のブラウザ内でのみ安全に利用され、外部に保存されません。")
     
-    openai_key = st.text_input("🔑 OpenAI API Key (文字起こし・AI)", type="password", placeholder="sk-...")
+    openai_key = st.text_input("🔑 OpenAI API Key (音声文字起こし・AI)", type="password", placeholder="sk-...")
     engine = st.selectbox(
         "🧠 翻訳AIモデル",
         ["Claude 3.5 Sonnet (推奨：圧倒的に自然な意訳)", "GPT-4o (OpenAI)"]
@@ -163,13 +177,13 @@ with st.sidebar:
         model_name = "gpt-4o"
         
     st.divider()
-    st.markdown("### 🌐 **ローカライズ詳細**")
+    st.markdown("### 🌐 **LOCALIZE SETTINGS**")
     
     target_lang = st.selectbox(
-        "翻訳先の言語",
+        "翻訳先言語",
         [
-            "英語 (US - YouTubeスラング・日常会話)",
-            "英語 (UK - イギリス日常会話)",
+            "英語 (US - YouTube日常会話・スラング)",
+            "英語 (UK - イギリス口語会話)",
             "韓国語 (YouTube・WEBトゥーン風の自然な会話)",
             "繁体字中国語 (台湾・香港向け)",
             "簡体字中国語",
@@ -179,7 +193,7 @@ with st.sidebar:
     )
     
     channel_genre = st.selectbox(
-        "動画のトーン＆世界観",
+        "動画ジャンル・世界観",
         [
             "🔥 YouTubeエンタメ・実況（テンポ重視・スラング適応）",
             "📖 2ch/修羅場/スカッと系（口語・感情爆発・テンポ良い煽り）",
@@ -255,35 +269,35 @@ def transcribe_media(file_bytes, file_ext, key):
 # メインヘッダー
 st.markdown("""
 <div class="hero-container">
-    <div class="hero-badge">YouTube Creator Suite PRO</div>
-    <div class="hero-title">YouTube Pro 映像ローカライズ Studio</div>
-    <div class="hero-desc">直訳ゼロ！動画・台本・フレーズを入れるだけで、ネイティブが普段使う自然な日常会話・スラングへ完全意訳。<br>タイトル・概要欄・サムネイル英文まで一括生成し、海外展開を最短化します。</div>
+    <div class="hero-badge">⚡ NEXT-GEN CREATOR STUDIO</div>
+    <div class="hero-title">TRANSLY PRO 映像・字幕ローカライズ</div>
+    <div class="hero-desc">直訳を徹底排除。ネイティブのYouTubeスラングや自然な感情表現に完全意訳。<br>動画から直接字幕SRT・海外向けタイトル3選・概要欄・サムネ用英文まで一撃生成します。</div>
 </div>
 """, unsafe_allow_html=True)
 
-# 3つの投入モードタブ
+# 3つの投入モードタブ（極太フォント）
 tab1, tab2, tab3 = st.tabs([
-    "🎥 モード1: 動画・音声を直接投入（全自動）",
-    "📋 モード2: 台本・SRTコピペ翻訳",
-    "✍️ モード3: 1文クイック翻訳（テロップ/サムネ）"
+    "🎬 【MODE 1】 動画・音声を直接投入（全自動）",
+    "📋 【MODE 2】 台本・SRT字幕コピペ翻訳",
+    "⚡ 【MODE 3】 1文クイック提案（テロップ/サムネ）"
 ])
 
 # ----------------- モード1 -----------------
 with tab1:
     st.markdown("""
     <div class="card-box">
-        <span class="step-badge">1</span><strong>動画または音声ファイルをアップロード</strong>
-        <p style="font-size:0.88rem; color:#64748B; margin: 4px 0 16px 0;">MP4 / MOV / MP3 などを入れるだけで、音声認識からローカライズ字幕・運用メタデータまで一瞬で完了します。</p>
+        <span class="step-badge">STEP 1</span><strong style="font-size:1.05rem;">動画または音声ファイルをアップロード</strong>
+        <p style="font-size:0.88rem; color:#94A3B8; margin: 6px 0 0 0;">MP4 / MOV / MP3 などを入れるだけで、音声認識からローカライズ字幕・運用メタデータまで一括出力します。</p>
     </div>
     """, unsafe_allow_html=True)
     
-    media_file = st.file_uploader("動画・音声ファイルを選択またはドロップ", type=["mp4", "mov", "mp3", "wav", "m4a"], key="u_media")
+    media_file = st.file_uploader("動画・音声ファイルをドロップ", type=["mp4", "mov", "mp3", "wav", "m4a"], key="u_media")
     
     col_opt1, _ = st.columns([1, 1])
     with col_opt1:
         gen_meta_video = st.checkbox("🎯 海外向けタイトル3案・概要欄・サムネ用コピーも同時生成する", value=True)
         
-    btn_video = st.button("⚡ 動画から全自動でローカライズ字幕を一括生成", type="primary", key="btn_v")
+    btn_video = st.button("🚀 動画から全自動でローカライズ字幕を一括生成", type="primary", key="btn_v")
     
     if btn_video:
         if not openai_key:
@@ -350,16 +364,16 @@ with tab1:
 with tab2:
     st.markdown("""
     <div class="card-box">
-        <span class="step-badge">2</span><strong>台本テキストまたは既存SRT字幕を貼り付け</strong>
-        <p style="font-size:0.88rem; color:#64748B; margin: 4px 0 16px 0;">長文のストーリーやテロップ台本をコピペするだけで、文脈を考慮した違和感のない翻訳へ変換します。</p>
+        <span class="step-badge">STEP 2</span><strong style="font-size:1.05rem;">台本テキストまたは既存SRT字幕を貼り付け</strong>
+        <p style="font-size:0.88rem; color:#94A3B8; margin: 6px 0 0 0;">長文ストーリーや台本を貼るだけで、前後の文脈を汲み取った違和感のない翻訳へ変換します。</p>
     </div>
     """, unsafe_allow_html=True)
     
-    text_input_type = st.radio("入力するデータの種類", ["日本語の台本テキスト（通常の文章）", "SRT字幕ファイル（タイムコード付きデータ）"], horizontal=True)
-    raw_text = st.text_area("ここに台本またはSRT字幕をペースト", height=180, placeholder="テキストを貼り付けてください...")
+    text_input_type = st.radio("入力するデータの形式", ["日本語の台本テキスト（通常の文章）", "SRT字幕ファイル（タイムコード付き）"], horizontal=True)
+    raw_text = st.text_area("台本またはSRT字幕をペースト", height=180, placeholder="テキストを貼り付けてください...")
     
     gen_meta_text = st.checkbox("この台本からYouTube用タイトル・サムネ案も同時作成する", value=False, key="chk_m2")
-    btn_text = st.button("⚡ テキストをネイティブ意訳する", type="primary", key="btn_t")
+    btn_text = st.button("🚀 テキストをネイティブ意訳する", type="primary", key="btn_t")
     
     if btn_text:
         if not raw_text.strip():
@@ -395,13 +409,13 @@ with tab2:
 with tab3:
     st.markdown("""
     <div class="card-box">
-        <span class="step-badge">3</span><strong>1文クイック翻訳（テロップ・サムネイル用インパクト文字）</strong>
-        <p style="font-size:0.88rem; color:#64748B; margin: 4px 0 16px 0;">「これって英語でどう言えば一番伝わる？」を1発解決。スラング・サムネ煽り・日常会話の3パターンを同時提案します。</p>
+        <span class="step-badge">STEP 3</span><strong style="font-size:1.05rem;">1文クイック提案（テロップ・サムネイル用インパクト文字）</strong>
+        <p style="font-size:0.88rem; color:#94A3B8; margin: 6px 0 0 0;">「これってネイティブなら何て言う？」を即座に解決。スラング・サムネ煽り・日常会話の3パターンを同時提案します。</p>
     </div>
     """, unsafe_allow_html=True)
     
     single_phrase = st.text_input("翻訳したいフレーズを入力", placeholder="例: マジで許せないんだけど、これどう思う？ / 衝撃の結末を見逃すな")
-    btn_single = st.button("🔍 複数の表現・スラングを提案", type="primary", key="btn_s")
+    btn_single = st.button("⚡ 複数の表現・スラングを提案", type="primary", key="btn_s")
     
     if btn_single:
         if not single_phrase.strip():
