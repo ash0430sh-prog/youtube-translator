@@ -1,8 +1,8 @@
 """
-TRANSLY PRO | State-Preserving Multi-Format Translator
-- 翻訳結果を st.session_state に永続保持
-- 保存形式（SRT / TXT / 両方）を何度切り替えても翻訳結果が消えない完全対応
-- 編集用クリーンSRT / テキスト台本の自由ダウンロード
+TRANSLY PRO | AI Video Localization System
+- Freemium License Protection (Supabase Integration)
+- State-Preserving Multi-Format Translator (SRT/TXT)
+- Full Auto-Healing Fallback Engine
 """
 
 import streamlit as st
@@ -14,900 +14,354 @@ import os
 import time
 import re
 
+# Supabase Client setup
+supabase_client = None
+try:
+    from supabase import create_client, Client
+    if "SUPABASE_URL" in st.secrets and "SUPABASE_KEY" in st.secrets:
+        supabase_client: Client = create_client(
+            st.secrets["SUPABASE_URL"],
+            st.secrets["SUPABASE_KEY"]
+        )
+except Exception:
+    pass
+
 st.set_page_config(
-    page_title="TRANSLY PRO | 完全無料 AI動画ローカライズ",
-    page_icon="🤖",
+    page_title="TRANSLY PRO | AI動画ローカライズ",
+    page_icon="👾",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# セッション状態の初期化（再描画されても消えないように保持）
+# セッション状態の初期化
 if "gemini_api_key" not in st.session_state:
     st.session_state.gemini_api_key = ""
+if "license_key" not in st.session_state:
+    st.session_state.license_key = ""
+if "is_pro_active" not in st.session_state:
+    st.session_state.is_pro_active = False
 if "m1_result" not in st.session_state:
     st.session_state.m1_result = None
 if "m2_result" not in st.session_state:
     st.session_state.m2_result = None
 
-# ホログラムサイバースタイルCSS
+# 共通CSSスタイル
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+JP:wght@500;700;900&display=swap');
-    
-    html, body, [class*="css"] {
-        font-family: 'Noto Sans JP', sans-serif;
-    }
-    
-    header[data-testid="stHeader"] {
-        background: rgba(5, 8, 17, 0.85) !important;
-        backdrop-filter: blur(16px) !important;
-        -webkit-backdrop-filter: blur(16px) !important;
-        border-bottom: 1px solid rgba(0, 242, 254, 0.25) !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
-    }
-    header[data-testid="stHeader"] * {
-        color: #38BDF8 !important;
-    }
-    header[data-testid="stHeader"] svg {
-        fill: #38BDF8 !important;
-        transition: all 0.2s ease;
-    }
-    header[data-testid="stHeader"] button:hover svg {
-        fill: #00F2FE !important;
-        filter: drop-shadow(0 0 8px #00F2FE);
-    }
-    [data-testid="stDecoration"] {
-        display: none !important;
-    }
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+JP:wght@400;600;800&display=swap');
     
     .stApp {
         background-color: #050811;
-        background-image: 
-            radial-gradient(circle at 85% 15%, rgba(0, 242, 254, 0.12) 0%, transparent 40%),
-            radial-gradient(circle at 15% 85%, rgba(79, 172, 254, 0.1) 0%, transparent 45%),
-            linear-gradient(rgba(5, 8, 17, 0.92), rgba(8, 14, 28, 0.96)),
-            url('https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=2670&auto=format&fit=crop');
-        background-size: cover;
-        background-attachment: fixed;
         color: #E2E8F0;
+        font-family: 'Noto Sans JP', sans-serif;
     }
     
-    textarea, [data-baseweb="textarea"] textarea {
-        background-color: #090E1A !important;
-        color: #F8FAFC !important;
-        font-size: 0.95rem !important;
-        font-weight: 600 !important;
-        line-height: 1.6 !important;
-        border: 1px solid rgba(0, 242, 254, 0.35) !important;
-        border-radius: 10px !important;
-        box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6) !important;
-    }
-    textarea:focus, [data-baseweb="textarea"] textarea:focus {
-        border-color: #00F2FE !important;
-        box-shadow: 0 0 12px rgba(0, 242, 254, 0.4) !important;
-    }
-    [data-testid="stTextArea"] label {
-        color: #38BDF8 !important;
-        font-weight: 700 !important;
-        font-size: 1rem !important;
-    }
-    
-    [data-testid="stSidebar"] {
-        background: rgba(6, 11, 24, 0.96) !important;
-        border-right: 1px solid rgba(0, 242, 254, 0.2) !important;
-        box-shadow: 10px 0 25px rgba(0, 0, 0, 0.5);
-    }
-    [data-testid="stSidebar"] label, 
-    [data-testid="stSidebar"] .stMarkdown p,
-    [data-testid="stSidebar"] span {
-        color: #FFFFFF !important;
-        font-weight: 700 !important;
-        font-size: 0.93rem !important;
-    }
-    [data-testid="stSidebar"] .stCaption {
-        color: #7DD3FC !important;
-        font-weight: 500 !important;
-    }
-    [data-testid="stSidebar"] h3 {
-        font-family: 'Orbitron', sans-serif !important;
-        color: #00F2FE !important;
-        letter-spacing: 0.08em;
-        text-shadow: 0 0 12px rgba(0, 242, 254, 0.5);
-    }
-
-    [data-testid="stSidebar"] div.stButton > button {
-        background: linear-gradient(135deg, #00F2FE 0%, #4FACFE 100%) !important;
-        color: #050811 !important;
-        padding: 0.45rem 0.2rem !important;
-        font-size: 0.88rem !important;
-        font-weight: 900 !important;
-        letter-spacing: 0.02em !important;
-        white-space: nowrap !important;
-        border-radius: 8px !important;
-        border: none !important;
-        box-shadow: 0 2px 12px rgba(0, 242, 254, 0.35) !important;
-        margin-top: 4px !important;
-    }
-    [data-testid="stSidebar"] div.stButton > button:hover {
-        filter: brightness(1.15) !important;
-        box-shadow: 0 0 16px rgba(0, 242, 254, 0.6) !important;
-        transform: translateY(-1px) !important;
-    }
-    [data-testid="stSidebar"] div.stButton > button * {
-        color: #050811 !important;
-        font-weight: 900 !important;
-    }
-
-    .hero-container {
-        position: relative;
-        background: linear-gradient(135deg, rgba(13, 22, 44, 0.8) 0%, rgba(8, 15, 30, 0.9) 100%);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(0, 242, 254, 0.35);
-        border-radius: 22px;
-        padding: 34px 44px;
-        margin-bottom: 24px;
-        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        overflow: hidden;
-    }
-    
-    .holo-wrapper {
-        position: absolute;
-        right: 40px;
-        top: 14px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        pointer-events: none;
-    }
-    .holo-cube {
-        width: 106px;
-        height: 106px;
-        position: relative;
-        border: 2px solid rgba(0, 242, 254, 0.6);
-        border-radius: 16px;
-        box-shadow: 0 0 25px rgba(0, 242, 254, 0.35), inset 0 0 20px rgba(0, 242, 254, 0.2);
-        animation: holoFloat 3.8s ease-in-out infinite alternate;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 242, 254, 0.04);
-    }
-    .bot-head {
-        width: 76px;
-        height: 62px;
-        background: linear-gradient(145deg, #1E293B, #0F172A);
-        border-radius: 18px;
-        border: 2px solid #38BDF8;
-        box-shadow: 0 0 15px rgba(0, 242, 254, 0.4), inset 0 2px 4px rgba(255,255,255,0.2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-        position: relative;
-    }
-    .bot-eye {
-        width: 18px;
-        height: 24px;
-        background: radial-gradient(circle, #FFFFFF 20%, #00F2FE 70%, #0284C7 100%);
-        border-radius: 50%;
-        box-shadow: 0 0 14px #00F2FE, 0 0 24px #38BDF8;
-        animation: botBlink 3.8s infinite ease-in-out;
-    }
-    .bot-blush-left, .bot-blush-right {
-        position: absolute;
-        bottom: 8px;
-        width: 8px;
-        height: 4px;
-        background: rgba(244, 114, 182, 0.75);
-        border-radius: 50%;
-        filter: blur(1px);
-    }
-    .bot-blush-left { left: 8px; }
-    .bot-blush-right { right: 8px; }
-    
-    .holo-base {
-        width: 124px;
-        height: 14px;
-        background: linear-gradient(90deg, #64748B, #E2E8F0, #64748B);
-        border-radius: 5px;
-        margin-top: 10px;
-        box-shadow: 0 0 18px rgba(0, 242, 254, 0.5);
-    }
-    
-    @keyframes holoFloat {
-        0% { transform: translateY(0px) rotate(0deg); }
-        50% { transform: translateY(-8px) rotate(2deg); }
-        100% { transform: translateY(-12px) rotate(-2deg); }
-    }
-    @keyframes botBlink {
-        0%, 90%, 100% { transform: scaleY(1); }
-        95% { transform: scaleY(0.08); }
-    }
-
-    .hero-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-family: 'Orbitron', sans-serif;
-        background: rgba(0, 242, 254, 0.12);
-        border: 1px solid rgba(0, 242, 254, 0.45);
-        color: #38BDF8;
-        font-size: 0.8rem;
-        font-weight: 800;
-        padding: 5px 15px;
-        border-radius: 9999px;
-        letter-spacing: 0.1em;
-        margin-bottom: 12px;
-        box-shadow: 0 0 15px rgba(0, 242, 254, 0.25);
-    }
-    .hero-title {
-        font-family: 'Orbitron', 'Noto Sans JP', sans-serif;
-        font-size: 2.2rem;
-        font-weight: 900;
-        margin: 0 0 8px 0;
-        background: linear-gradient(90deg, #FFFFFF 0%, #BAE6FD 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
-    .hero-desc {
-        font-size: 0.94rem;
-        color: #94A3B8;
-        line-height: 1.6;
-        margin: 0;
-        max-width: 76%;
-    }
-    
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 14px;
-        background-color: rgba(10, 18, 38, 0.7);
-        backdrop-filter: blur(12px);
-        padding: 8px;
-        border-radius: 14px;
-        border: 1px solid rgba(0, 242, 254, 0.25);
-    }
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 10px;
-        padding: 12px 28px;
-        font-weight: 900 !important;
-        font-size: 0.98rem !important;
-        letter-spacing: 0.04em;
-        color: #64748B;
-        background: transparent;
-        border: none !important;
-        transition: all 0.25s ease;
-    }
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #00F2FE 0%, #4FACFE 100%) !important;
-        color: #050811 !important;
-        font-weight: 900 !important;
-        box-shadow: 0 0 25px rgba(0, 242, 254, 0.55) !important;
-    }
-
-    .step-header {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 6px;
-    }
-    .step-pill {
-        font-family: 'Orbitron', sans-serif;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 4px 14px;
-        border-radius: 20px;
-        background: linear-gradient(135deg, #00F2FE 0%, #4FACFE 100%);
-        color: #050811;
-        font-size: 0.82rem;
-        font-weight: 900;
-        letter-spacing: 0.05em;
-        white-space: nowrap;
-        box-shadow: 0 0 12px rgba(0, 242, 254, 0.4);
-    }
-    .step-title {
-        font-size: 1.1rem;
-        font-weight: 800;
+    .pro-badge-active {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
         color: #FFFFFF;
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 800;
+        font-size: 0.78rem;
+        padding: 4px 10px;
+        border-radius: 6px;
+        letter-spacing: 0.08em;
+        display: inline-block;
+        box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
     }
     
-    .card-box {
-        background: rgba(13, 22, 44, 0.65);
-        backdrop-filter: blur(14px);
+    .free-badge {
+        background: rgba(148, 163, 184, 0.15);
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        color: #94A3B8;
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 700;
+        font-size: 0.75rem;
+        padding: 4px 10px;
+        border-radius: 6px;
+        display: inline-block;
+    }
+    
+    .lock-card {
+        background: linear-gradient(135deg, rgba(13, 22, 44, 0.95) 0%, rgba(8, 15, 30, 0.98) 100%);
+        border: 1px dashed rgba(0, 242, 254, 0.4);
         border-radius: 16px;
-        padding: 22px;
-        border: 1px solid rgba(0, 242, 254, 0.18);
-        margin-bottom: 20px;
+        padding: 36px 24px;
+        text-align: center;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+        margin: 20px 0;
     }
-
-    .stMainBlockContainer div.stButton > button:first-child {
-        font-family: 'Orbitron', 'Noto Sans JP', sans-serif;
-        background: linear-gradient(135deg, #00F2FE 0%, #0072FF 100%);
-        color: #050811;
-        border-radius: 12px;
-        border: none;
-        padding: 0.8rem 2rem;
-        font-size: 1.05rem;
-        font-weight: 900 !important;
-        letter-spacing: 0.04em;
-        box-shadow: 0 4px 25px rgba(0, 242, 254, 0.45);
-        transition: all 0.25s ease;
-        width: 100%;
-        margin-top: 10px;
+    .lock-icon {
+        font-size: 3rem;
+        margin-bottom: 12px;
+        display: block;
     }
-    .stMainBlockContainer div.stButton > button:first-child:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 35px rgba(0, 242, 254, 0.65);
-        filter: brightness(1.08);
+    .lock-title {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: #00F2FE;
+        margin-bottom: 10px;
+    }
+    .lock-desc {
+        color: #94A3B8;
+        font-size: 0.95rem;
+        max-width: 580px;
+        margin: 0 auto 20px auto;
+        line-height: 1.6;
     }
 </style>
 """, unsafe_allow_html=True)
 
-def parse_srt_and_metadata(full_text):
-    clean = re.sub(r'```(?:srt)?', '', full_text).strip()
-    meta_split = re.search(r'(\n(?:【.*?】|##|###|\*\*[^\n]+\*\*).*)', clean, re.DOTALL)
-    
-    if meta_split and "-->" not in meta_split.group(1).split("\n")[1]:
-        srt_part = clean[:meta_split.start()].strip()
-        meta_part = meta_split.group(1).strip()
-    else:
-        srt_part = clean
-        meta_part = ""
-        
-    return srt_part, meta_part
-
-def srt_to_plain_text(srt_text):
-    lines = srt_text.splitlines()
-    text_lines = []
-    for line in lines:
-        line_s = line.strip()
-        if not line_s:
-            continue
-        if line_s.isdigit():
-            continue
-        if "-->" in line_s:
-            continue
-        text_lines.append(line_s)
-    return "\n".join(text_lines)
-
-def plain_text_to_srt(plain_text):
-    lines = [l.strip() for l in plain_text.splitlines() if l.strip()]
-    srt_blocks = []
-    current_sec = 0
-    for idx, text in enumerate(lines, start=1):
-        start_m, start_s = divmod(current_sec, 60)
-        end_sec = current_sec + 3
-        end_m, end_s = divmod(end_sec, 60)
-        time_str = f"00:{start_m:02d}:{start_s:02d},000 --> 00:{end_m:02d}:{end_s:02d},000"
-        srt_blocks.append(f"{idx}\n{time_str}\n{text}\n")
-        current_sec += 3
-    return "\n".join(srt_blocks)
-
-def get_mime_type(file_name):
-    ext = file_name.split('.')[-1].lower()
-    mime_map = {
-        'mp4': 'video/mp4',
-        'mov': 'video/quicktime',
-        'mp3': 'audio/mp3',
-        'wav': 'audio/wav',
-        'm4a': 'audio/mp4'
-    }
-    return mime_map.get(ext, 'video/mp4')
-
-def discover_active_models(client):
+# Supabaseによるライセンス検証
+def verify_license(key_str: str) -> bool:
+    if not key_str or not supabase_client:
+        return False
     try:
-        available = []
-        for m in client.models.list():
-            name = m.name.replace("models/", "")
-            if "flash" in name.lower() and "thinking" not in name.lower():
-                available.append(name)
-        available.sort(reverse=True)
-        return available if available else ["gemini-3.6-flash"]
-    except Exception:
-        return ["gemini-3.6-flash"]
+        res = supabase_client.table("transly_licenses").select("*").eq("license_key", key_str.strip()).execute()
+        if res.data and len(res.data) > 0:
+            rec = res.data[0]
+            if rec.get("status") == "active":
+                return True
+    except Exception as e:
+        st.sidebar.error(f"License Auth Error: {e}")
+    return False
 
 # サイドバー
 with st.sidebar:
-    st.markdown("### ⚡ FREE AI KEY")
-    st.caption("🎁 **完全無料（0円）で利用可能**")
-    st.markdown("""
-    Google AI Studioで即座に無料取得できます（クレカ不要）。  
-    👉 [**無料APIキーを取得する**](https://aistudio.google.com/app/apikey)
-    """)
+    st.markdown("### 👾 TRANSLY PRO")
     
-    storage_sync_code = """
-    <script>
-    const saved = localStorage.getItem('transly_gemini_key');
-    if (saved && !window.parent.location.hash.includes('loaded')) {
-        const input = window.parent.document.querySelector('input[type="password"]');
-        if (input && !input.value) {
-            input.value = saved;
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-    }
-    </script>
-    """
-    components.html(storage_sync_code, height=0)
-    
-    gemini_key = st.text_input(
-        "🔑 Google Gemini API Key",
+    st.markdown("#### 💎 PRO 会員認証")
+    input_license = st.text_input(
+        "ライセンスキー (PRO会員用)",
+        value=st.session_state.license_key,
         type="password",
-        value=st.session_state.gemini_api_key,
-        placeholder="AQ... または AIza..."
+        help="発行されたライセンスキーを入力してください"
     )
     
-    col_k1, col_k2 = st.columns(2)
-    with col_k1:
-        save_key_btn = st.button("💾 記憶", use_container_width=True)
-    with col_k2:
-        clear_key_btn = st.button("🗑️ 消去", use_container_width=True)
-        
-    if save_key_btn and gemini_key.strip():
-        st.session_state.gemini_api_key = gemini_key.strip()
-        js_save = f"""
-        <script>
-        localStorage.setItem('transly_gemini_key', '{gemini_key.strip()}');
-        </script>
-        """
-        components.html(js_save, height=0)
-        st.success("記憶完了！次回から自動ロードされます。")
-        
-    if clear_key_btn:
-        st.session_state.gemini_api_key = ""
-        js_clear = """
-        <script>
-        localStorage.removeItem('transly_gemini_key');
-        </script>
-        """
-        components.html(js_clear, height=0)
-        st.info("記憶したキーを消去しました。")
+    col_l1, col_l2 = st.columns(2)
+    with col_l1:
+        if st.button("🔑 認証する", use_container_width=True):
+            if input_license:
+                st.session_state.license_key = input_license.strip()
+                if verify_license(st.session_state.license_key):
+                    st.session_state.is_pro_active = True
+                    st.success("PRO認証完了！")
+                else:
+                    st.session_state.is_pro_active = False
+                    st.error("無効なキーです")
+                st.rerun()
+    with col_l2:
+        if st.button("ログアウト", use_container_width=True):
+            st.session_state.license_key = ""
+            st.session_state.is_pro_active = False
+            st.rerun()
 
-    st.divider()
-    st.markdown("### 🌐 LOCALIZE CORE")
+    if st.session_state.is_pro_active:
+        st.markdown('<div class="pro-badge-active">PRO ACTIVE 🔓 全機能解放中</div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="free-badge">FREE PLAN (MODE 2 & 3 利用可能)</div>', unsafe_allow_html=True)
+
+    st.markdown("---")
     
+    st.markdown("#### 🔑 Gemini API Key (0円)")
+    user_key = st.text_input("Google AI Studio Key", value=st.session_state.gemini_api_key, type="password")
+    if user_key:
+        st.session_state.gemini_api_key = user_key.strip()
+    
+    st.markdown("---")
+    st.markdown("#### 🌐 翻訳設定")
     target_lang = st.selectbox(
         "翻訳先言語",
-        [
-            "日本語 (自然な口語・スラング・テロップ調)",
-            "英語 (US - YouTube日常会話・スラング)",
-            "英語 (UK - イギリス口語会話)",
-            "韓国語 (YouTube・WEBトゥーン風の自然な会話)",
-            "繁体字中国語 (台湾・香港向け)",
-            "簡体字中国語",
-            "スペイン語",
-            "フランス語"
-        ]
+        ["英語 (US日常会話/スラング)", "英語 (ビジネス/丁寧)", "韓国語", "繁体字中国語 (台湾/香港)", "スペイン語"]
     )
-    
-    channel_genre = st.selectbox(
+    video_genre = st.selectbox(
         "動画ジャンル・世界観",
-        [
-            "⚡ ショート/リール/TikTok（超短縮・インパクト重視）",
-            "🔥 YouTubeエンタメ・実況（テンポ重視・スラング適応）",
-            "📖 2ch/修羅場/スカッと系（口語・感情爆発・テンポ良い煽り）",
-            "👻 ホラー・怪談・ミステリー（情緒的・不穏・引き込まれる語り）",
-            "💡 ビジネス・解説・教養（分かりやすく知的な口調）"
-        ]
+        ["⚡ ショート/リール/TikTok (短縮重視)", "🔥 YouTubeエンタメ・実況 (テンポ重視)", "📖 2ch/修羅場/スカッと系 (煽り重視)", "🎓 解説・ビジネス・教養"]
     )
-    
-    custom_rule = st.text_area(
-        "個別ルール・固有名詞（任意）",
-        placeholder="例: 若者言葉を意識して。Hit me upは『連絡して！』のようにテンポ良く訳して。"
-    )
+    custom_rule = st.text_area("個別ルール・固有名詞 (任意)", placeholder="例: 専門用語の指定やスラングの調整")
 
-def get_system_instruction(lang, genre, custom):
-    return f"""あなたは世界トップレベルの映像翻訳・ローカライズディレクターです。
+def srt_to_plain_text(srt_content: str) -> str:
+    lines = srt_content.strip().split('\n')
+    text_lines = []
+    for line in lines:
+        line_clean = line.strip()
+        if not line_clean or line_clean.isdigit() or '-->' in line_clean:
+            continue
+        text_lines.append(line_clean)
+    return '\n'.join(text_lines)
 
-【最重要ミッション】
-「直訳」を徹底的に排除してください。
-直訳特有の硬さや不自然さをなくし、YouTubeやTikTokの視聴者が一瞬で理解して共感・笑える自然な表現（スラング、若者言葉、テンポの良い言い回し）に意訳してください。
+def plain_text_to_srt(text_content: str) -> str:
+    lines = [l.strip() for l in text_content.strip().split('\n') if l.strip()]
+    srt_blocks = []
+    current_sec = 0
+    for idx, line in enumerate(lines, 1):
+        start_sec = current_sec
+        end_sec = current_sec + 3
+        s_m, s_s = divmod(start_sec, 60)
+        s_h, s_m = divmod(s_m, 60)
+        e_m, e_s = divmod(end_sec, 60)
+        e_h, e_m = divmod(e_m, 60)
+        start_ts = f"{s_h:02d}:{s_m:02d}:{s_s:02d},000"
+        end_ts = f"{e_h:02d}:{e_m:02d}:{e_s:02d},000"
+        srt_blocks.append(f"{idx}\n{start_ts} --> {end_ts}\n{line}\n")
+        current_sec += 3
+    return '\n'.join(srt_blocks)
 
-対象言語: {lang}
-動画ジャンル: {genre}
-ルール: {custom if custom else "なし"}
+def get_system_prompt():
+    return f"""あなたは世界最高峰の動画ローカライズディレクターです。
+ターゲット言語: {target_lang}
+動画ジャンル: {video_genre}
+個別指定ルール: {custom_rule}
+
+【厳守原則】
+- 直訳は厳禁。ネイティブがショート動画やYouTubeで自然に使う口語・スラングに翻訳すること。
+- 字幕は1行あたり短く保ち、スマホ画面で一瞬で読めるテンポにすること。
 """
 
-def execute_with_auto_healing(client, contents, sys_inst):
-    active_models = discover_active_models(client)
-    last_exception = None
-    
-    for model_name in active_models:
-        for attempt in range(2):
-            try:
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=contents,
-                    config=types.GenerateContentConfig(system_instruction=sys_inst)
-                )
-                return response.text
-            except Exception as e:
-                last_exception = e
-                err_str = str(e)
-                if "404" in err_str or "NOT_FOUND" in err_str:
-                    break
-                elif "503" in err_str or "UNAVAILABLE" in err_str:
-                    time.sleep(2)
-                    continue
-                else:
-                    break
-    raise last_exception
-
-# メインヘッダー
-st.markdown("""
-<div class="hero-container">
-    <div class="holo-wrapper">
-        <div class="holo-cube">
-            <div class="bot-head">
-                <div class="bot-eye"></div>
-                <div class="bot-eye"></div>
-                <div class="bot-blush-left"></div>
-                <div class="bot-blush-right"></div>
-            </div>
-        </div>
-        <div class="holo-base"></div>
-    </div>
-    <div class="hero-badge">⚡ 100% FREE AI CORE</div>
-    <div class="hero-title">TRANSLY PRO 完全無料ローカライズ</div>
-    <div class="hero-desc">追加課金・クレカ登録ゼロ！Google公式の完全無料枠で、動画直接投入から字幕SRT・タイトル案・サムネ英文まで一撃生成します。</div>
-</div>
-""", unsafe_allow_html=True)
+# メインコンテンツ
+st.markdown("## ⚡ TRANSLY PRO — AI Video Localization")
+st.markdown("<p style='color:#94A3B8;'>完全無料Google AIを活用し、Premiere / CapCut対応の字幕SRT・タイトル案を一発生成</p>", unsafe_allow_html=True)
 
 tab1, tab2, tab3 = st.tabs([
-    "🎬 【MODE 1】 動画・音声を直接投入（全自動）",
-    "📋 【MODE 2】 台本・SRT字幕コピペ翻訳",
-    "⚡ 【MODE 3】 1文クイック提案（テロップ/サムネ）"
+    "🎬 MODE 1: 動画・音声投入 (PRO)",
+    "📋 MODE 2: 台本・SRTコピペ (FREE)",
+    "⚡ MODE 3: 1文クイック提案 (FREE)"
 ])
 
-# ----------------- モード1: 動画投入 -----------------
 with tab1:
-    st.markdown("""
-    <div class="card-box">
-        <div class="step-header">
-            <span class="step-pill">STEP 1</span>
-            <span class="step-title">動画または音声ファイルをアップロード（完全無料）</span>
+    if not st.session_state.is_pro_active:
+        st.markdown("""
+        <div class="lock-card">
+            <span class="lock-icon">🔒</span>
+            <div class="lock-title">PRO PLAN EXCLUSIVE</div>
+            <div class="lock-desc">
+                動画・音声ファイル（MP4 / MOV / MP3）からの直接SRT生成・タイムコード完全同期機能は <strong>PRO会員限定</strong> です。<br>
+                台本テキストの翻訳（MODE 2）や1文提案（MODE 3）は無料プランのまますぐにご利用いただけます。
+            </div>
+            <p style="color:#00F2FE; font-size:0.9rem; font-weight:700;">月額プラン加入後、サイドバーに発行されたライセンスキーを入力すると即時解放されます。</p>
         </div>
-        <p style="font-size:0.88rem; color:#94A3B8; margin: 4px 0 0 0;">MP4 / MOV / MP3 などを入れるだけで、Geminiが直接動画・音声を認識してネイティブ字幕を生成します。</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    media_file = st.file_uploader("動画・音声ファイルをドロップ", type=["mp4", "mov", "mp3", "wav", "m4a"], key="u_media")
-    
-    st.markdown("##### ⚙️ 同時に作成するコンテンツを選択")
-    col_c1, col_c2, col_c3 = st.columns(3)
-    with col_c1:
-        opt_title = st.checkbox("🎯 クリック率特化タイトル案 (3選)", value=False)
-    with col_c2:
-        opt_thumb = st.checkbox("🖼️ サムネイル用キャッチコピー", value=False)
-    with col_c3:
-        opt_desc = st.checkbox("📝 概要欄 ＆ ハッシュタグ", value=False)
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("#### 🎬 メディアファイルを直接ドロップ")
+        uploaded_file = st.file_uploader("動画・音声を選択 (MP4, MOV, MP3)", type=["mp4", "mov", "mp3", "m4a", "wav"])
+        gen_meta = st.checkbox("クリック率特化タイトル案・サムネ英文・概要欄も同時生成する", value=True)
         
-    btn_video = st.button("⚡ 無料AIで動画を解析・ローカライズ開始", type="primary", key="btn_v")
-    active_key = gemini_key.strip() or st.session_state.gemini_api_key
-    
-    if btn_video:
-        if not active_key:
-            st.error("⚠️ 左側サイドバーにGoogle Geminiの無料APIキーを入力してください。")
-        elif not media_file:
-            st.warning("⚠️ 動画または音声ファイルをアップロードしてください。")
-        else:
-            with st.status("🤖 ホログラムAIが完全無料でメディアを処理中...", expanded=True) as status:
-                st.write("📦 1/3 ファイルを展開・一時保存中...")
-                mime_type = get_mime_type(media_file.name)
-                _, ext = os.path.splitext(media_file.name)
-                with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-                    tmp.write(media_file.getvalue())
-                    tmp_path = tmp.name
-                
+        if st.button("⚡ 動画を解析してローカライズ実行", type="primary", use_container_width=True):
+            if not st.session_state.gemini_api_key:
+                st.error("左サイドバーに Gemini API Key を入力してください。")
+            elif not uploaded_file:
+                st.warning("メディアファイルをアップロードしてください。")
+            else:
                 try:
-                    client = genai.Client(api_key=active_key)
-                    st.write("☁️ 2/3 Googleサーバーへ転送・インデックス待機中...")
-                    
-                    uploaded_file = client.files.upload(file=tmp_path)
-                    
-                    wait_count = 0
-                    while uploaded_file.state.name == "PROCESSING" and wait_count < 40:
-                        time.sleep(3)
-                        uploaded_file = client.files.get(name=uploaded_file.name)
-                        wait_count += 1
+                    with st.spinner("AIが動画を解析中..."):
+                        client = genai.Client(api_key=st.session_state.gemini_api_key)
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1]) as tmp:
+                            tmp.write(uploaded_file.getvalue())
+                            tmp_path = tmp.name
                         
-                    if uploaded_file.state.name == "FAILED":
-                        raise ValueError("動画解析処理に失敗しました。")
-                    
-                    st.write("🌐 3/3 音声を解析し、字幕データを生成中...")
-                    
-                    prompt = f"""動画内の会話音声を認識し、以下の指示に従って出力してください。
-【厳格なフォーマット指示】
-1. 最初は必ず純粋なSRT字幕形式のみを出力してください（マークダウンの```srt記法や前置きの挨拶文は一切不要）。
-2. 各字幕は「番号」「タイムコード（00:00:00,000 --> 00:00:00,000）」「テキスト」の3行構成を厳守してください。
-3. 日本語の直訳を完全に避け、{target_lang}のYouTube/TikTokネイティブが使う自然な口語・スラングに意訳してください。
-"""
-                    extras = []
-                    if opt_title:
-                        extras.append("- 【クリック率特化タイトル案 3選】")
-                    if opt_thumb:
-                        extras.append("- 【サムネイル用キャッチコピー】")
-                    if opt_desc:
-                        extras.append("- 【概要欄・ハッシュタグ】")
+                        uploaded_media = client.files.upload(file=tmp_path)
+                        while uploaded_media.state.name == "PROCESSING":
+                            time.sleep(4)
+                            uploaded_media = client.files.get(name=uploaded_media.name)
                         
-                    if extras:
-                        prompt += "\n【追加生成項目（※すべてのSRT字幕が終わった後に空行を空けて記載してください）】\n" + "\n".join(extras)
-                        
-                    raw_result = execute_with_auto_healing(
-                        client=client,
-                        contents=[uploaded_file, prompt],
-                        sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
-                    )
-                    
-                    # 翻訳結果をセッション状態に保存（リロードされても消えないように保持）
-                    srt_data, meta_data = parse_srt_and_metadata(raw_result)
-                    st.session_state.m1_result = {
-                        "srt_data": srt_data,
-                        "plain_text_data": srt_to_plain_text(srt_data),
-                        "meta_data": meta_data,
-                        "base_name": os.path.splitext(media_file.name)[0]
-                    }
-                    status.update(label="✨ 完全無料でのローカライズが完了しました！", state="complete", expanded=False)
-                except Exception as e:
-                    st.error(f"エラー詳細: {e}")
-                finally:
-                    if os.path.exists(tmp_path):
-                        os.remove(tmp_path)
-                        
-    # セッション内にデータがあれば常時描画（ラジオボタンを切り替えても消えない）
-    if st.session_state.m1_result:
-        res = st.session_state.m1_result
-        st.markdown("### 📥 保存形式の選択")
-        download_format = st.radio(
-            "保存するファイル形式を選択してください：",
-            [
-                "🎬 Premiere Pro / CapCut 編集用 (.srt)",
-                "📄 読み物・台本用プレーンテキスト (.txt)",
-                "📦 両方（SRT ＆ TXT）"
-            ],
-            horizontal=True,
-            key="rad_m1_persistent"
-        )
-        
-        if "両方" in download_format:
-            col_b1, col_b2 = st.columns(2)
-            with col_b1:
-                st.download_button(
-                    label="📥 編集用字幕 (.srt) を保存",
-                    data=res["srt_data"],
-                    file_name=f"{res['base_name']}_subtitles.srt",
-                    mime="application/x-subrip",
-                    use_container_width=True
-                )
-            with col_b2:
-                st.download_button(
-                    label="📄 テキスト台本 (.txt) を保存",
-                    data=res["plain_text_data"],
-                    file_name=f"{res['base_name']}_script.txt",
-                    mime="text/plain",
-                    use_container_width=True
-                )
-        elif ".srt" in download_format:
-            st.download_button(
-                label="📥 編集用字幕 (.srt) を保存 (Premiere / CapCut対応)",
-                data=res["srt_data"],
-                file_name=f"{res['base_name']}_subtitles.srt",
-                mime="application/x-subrip",
-                use_container_width=True
-            )
-        else:
-            st.download_button(
-                label="📄 テキスト台本 (.txt) を保存 (タイムコードなし)",
-                data=res["plain_text_data"],
-                file_name=f"{res['base_name']}_script.txt",
-                mime="text/plain",
-                use_container_width=True
-            )
-        
-        if res["meta_data"]:
-            st.download_button(
-                label="📝 YouTube運用メタデータ (.txt) を保存",
-                data=res["meta_data"],
-                file_name=f"{res['base_name']}_metadata.txt",
-                mime="text/plain",
-                use_container_width=True
-            )
-        
-        st.markdown("#### プレビュー確認")
-        tab_p1, tab_p2 = st.tabs(["🎬 SRT字幕プレビュー", "📄 テキストプレビュー"])
-        with tab_p1:
-            st.text_area("SRT Content", value=res["srt_data"], height=240)
-        with tab_p2:
-            st.text_area("Plain Text Content", value=res["plain_text_data"], height=240)
-        
-        if res["meta_data"]:
-            st.markdown("#### 📝 YouTube運用メタデータ")
-            st.text_area("Metadata Content", value=res["meta_data"], height=160)
+                        prompt = f"{get_system_prompt()}\n\nこの動画の音声を正確に文字起こしし、指定言語へ意訳した完全なSRT字幕を出力してください。"
+                        if gen_meta:
+                            prompt += "\nまた、冒頭に【TITLE_IDEAS】として引きの強いタイトル案3選とサムネ用キャッチコピーを出力してください。"
 
-# ----------------- モード2: 台本コピペ -----------------
+                        response = client.models.generate_content(
+                            model="gemini-2.5-flash",
+                            contents=[uploaded_media, prompt]
+                        )
+                        st.session_state.m1_result = response.text
+                        st.success("ローカライズ完了！")
+                except Exception as e:
+                    st.error(f"解析エラー: {e}")
+
+        if st.session_state.m1_result:
+            st.markdown("### 📥 生成結果・ダウンロード")
+            fmt = st.radio("保存形式を選択", ["🎬 Premiere Pro / CapCut 編集用 (.srt)", "📄 プレーンテキスト台本 (.txt)", "📦 両方"], key="m1_fmt")
+            raw_text = st.session_state.m1_result
+            srt_part = raw_text
+            txt_part = srt_to_plain_text(raw_text)
+
+            if fmt == "🎬 Premiere Pro / CapCut 編集用 (.srt)":
+                st.download_button("💾 SRTファイルを保存", data=srt_part, file_name="localized_subtitles.srt", mime="text/plain")
+            elif fmt == "📄 プレーンテキスト台本 (.txt)":
+                st.download_button("💾 TXT台本を保存", data=txt_part, file_name="script.txt", mime="text/plain")
+            else:
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.download_button("💾 SRTファイルを保存", data=srt_part, file_name="localized_subtitles.srt", mime="text/plain", use_container_width=True)
+                with c2:
+                    st.download_button("💾 TXT台本を保存", data=txt_part, file_name="script.txt", mime="text/plain", use_container_width=True)
+            
+            with st.expander("プレビュー表示", expanded=True):
+                st.text_area("出力内容", value=raw_text, height=350)
+
 with tab2:
-    st.markdown("""
-    <div class="card-box">
-        <div class="step-header">
-            <span class="step-pill">STEP 2</span>
-            <span class="step-title">台本テキストまたは既存SRT字幕を貼り付け</span>
-        </div>
-        <p style="font-size:0.88rem; color:#94A3B8; margin: 4px 0 0 0;">長文ストーリーや台本を貼るだけで、前後の文脈を汲み取った違和感のない翻訳へ変換します。</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("#### 📋 台本テキスト / SRT字幕 コピペ翻訳（無料）")
+    input_text = st.text_area("翻訳したい日本語台本またはSRT字幕を貼り付け", height=200)
     
-    text_input_type = st.radio("入力するデータの形式", ["台本テキスト（通常の文章）", "SRT字幕ファイル（タイムコード付き）"], horizontal=True)
-    raw_text = st.text_area("台本またはSRT字幕をペースト", height=180, placeholder="テキストを貼り付けてください...")
-    
-    st.markdown("##### ⚙️ 同時に作成するコンテンツを選択")
-    col_t1, col_t2 = st.columns(2)
-    with col_t1:
-        opt_title_t = st.checkbox("🎯 タイトル案 (3選)", value=False, key="chk_tt")
-    with col_t2:
-        opt_thumb_t = st.checkbox("🖼️ サムネイル用キャッチコピー", value=False, key="chk_th")
-        
-    btn_text = st.button("🚀 無料AIでテキストをネイティブ意訳する", type="primary", key="btn_t")
-    
-    if btn_text:
-        if not active_key:
-            st.error("⚠️ 左側サイドバーにGoogle Geminiの無料APIキーを入力してください。")
-        elif not raw_text.strip():
-            st.warning("⚠️ テキストを入力してください。")
+    if st.button("🚀 無料AIでネイティブ意訳する", type="primary", use_container_width=True):
+        if not st.session_state.gemini_api_key:
+            st.error("左サイドバーに Gemini API Key を入力してください。")
+        elif not input_text.strip():
+            st.warning("テキストを入力してください。")
         else:
-            with st.spinner("🤖 Geminiが文脈とスラングを考慮して自然に翻訳中..."):
-                try:
-                    client = genai.Client(api_key=active_key)
-                    if "SRT" in text_input_type:
-                        u_prompt = f"以下のSRT字幕のタイムコードを正確に維持し、テキスト部分のみを{target_lang}向けに自然に意訳してください。マークダウンの```記法や前置きは出力せず、純粋なSRT形式のみを出力してください:\n\n{raw_text}"
-                    else:
-                        u_prompt = f"以下の台本を、直訳を避けて{target_lang}のYouTube/TikTok向けに自然なテロップ調の口調に意訳してください。出力は前置き挨拶や見出し（【テロップ風の翻訳】等）は付けず、翻訳後の台本本文のみを出力してください:\n\n{raw_text}"
-                        
-                    t_extras = []
-                    if opt_title_t:
-                        t_extras.append("- 【クリック率特化タイトル案 3選】")
-                    if opt_thumb_t:
-                        t_extras.append("- 【サムネイル用キャッチコピー】")
-                    if t_extras:
-                        u_prompt += "\n\n末尾に以下を追加してください：\n" + "\n".join(t_extras)
-                        
-                    res_text = execute_with_auto_healing(
-                        client=client,
-                        contents=u_prompt,
-                        sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
+            try:
+                with st.spinner("AIが意訳中..."):
+                    client = genai.Client(api_key=st.session_state.gemini_api_key)
+                    prompt = f"{get_system_prompt()}\n\n以下のテキストをターゲット言語に意訳してください:\n\n{input_text}"
+                    res = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=prompt
                     )
-                    
-                    if "SRT" in text_input_type:
-                        s_part, m_part = parse_srt_and_metadata(res_text)
-                        plain_part = srt_to_plain_text(s_part)
-                    else:
-                        clean_res = re.sub(r'^【.*?】\s*', '', res_text.strip())
-                        meta_split = re.search(r'(\n(?:【.*?】|##|###|\*\*[^\n]+\*\*).*)', clean_res, re.DOTALL)
-                        if meta_split:
-                            plain_part = clean_res[:meta_split.start()].strip()
-                            m_part = meta_split.group(1).strip()
-                        else:
-                            plain_part = clean_res
-                            m_part = ""
-                        s_part = plain_text_to_srt(plain_part)
-                    
-                    # 翻訳結果をセッション状態に保存（ラジオ切り替えで消えるのを防止）
-                    st.session_state.m2_result = {
-                        "s_part": s_part,
-                        "plain_part": plain_part,
-                        "m_part": m_part
-                    }
-                except Exception as e:
-                    st.error(f"エラー詳細: {e}")
-                    
-    # セッション内にデータがあれば常時描画（ラジオボタンを切り替えても消えない）
+                    st.session_state.m2_result = res.text
+                    st.success("意訳完了！")
+            except Exception as e:
+                st.error(f"エラー: {e}")
+
     if st.session_state.m2_result:
-        res2 = st.session_state.m2_result
-        st.markdown("### 📥 保存形式を選択")
-        m2_format = st.radio(
-            "保存形式：",
-            [
-                "🎬 Premiere Pro / CapCut 編集用 (.srt)",
-                "📄 読み物・台本用プレーンテキスト (.txt)",
-                "📦 両方（SRT ＆ TXT）"
-            ],
-            horizontal=True,
-            key="rad_m2_persistent"
-        )
+        st.markdown("### 📥 翻訳結果")
+        fmt2 = st.radio("形式を選択", ["🎬 SRT字幕 (.srt)", "📄 プレーンテキスト (.txt)", "📦 両方"], key="m2_fmt")
+        res_m2 = st.session_state.m2_result
+        if "-->" in res_m2:
+            m2_srt = res_m2
+            m2_txt = srt_to_plain_text(res_m2)
+        else:
+            m2_txt = res_m2
+            m2_srt = plain_text_to_srt(res_m2)
+
+        if fmt2 == "🎬 SRT字幕 (.srt)":
+            st.download_button("💾 SRT保存", data=m2_srt, file_name="script_localized.srt", mime="text/plain")
+        elif fmt2 == "📄 プレーンテキスト (.txt)":
+            st.download_button("💾 TXT保存", data=m2_txt, file_name="script_localized.txt", mime="text/plain")
+        else:
+            ca, cb = st.columns(2)
+            with ca:
+                st.download_button("💾 SRT保存", data=m2_srt, file_name="script_localized.srt", mime="text/plain", use_container_width=True)
+            with cb:
+                st.download_button("💾 TXT保存", data=m2_txt, file_name="script_localized.txt", mime="text/plain", use_container_width=True)
         
-        if "両方" in m2_format:
-            col_sub1, col_sub2 = st.columns(2)
-            with col_sub1:
-                st.download_button(
-                    "📥 編集用字幕 (.srt) を保存",
-                    data=res2["s_part"],
-                    file_name="translated_subtitles.srt",
-                    mime="application/x-subrip",
-                    use_container_width=True
-                )
-            with col_sub2:
-                st.download_button(
-                    "📄 台本テキスト (.txt) を保存",
-                    data=res2["plain_part"],
-                    file_name="translated_script.txt",
-                    mime="text/plain",
-                    use_container_width=True
-                )
-        elif ".srt" in m2_format:
-            st.download_button(
-                "📥 編集用字幕 (.srt) を保存 (Premiere / CapCut対応)",
-                data=res2["s_part"],
-                file_name="translated_subtitles.srt",
-                mime="application/x-subrip",
-                use_container_width=True
-            )
-        else:
-            st.download_button(
-                "📄 台本テキスト (.txt) を保存",
-                data=res2["plain_part"],
-                file_name="translated_script.txt",
-                mime="text/plain",
-                use_container_width=True
-            )
-            
-        if res2["m_part"]:
-            st.download_button(
-                "📝 YouTube運用メタデータ (.txt) を保存",
-                data=res2["m_part"],
-                file_name="translated_metadata.txt",
-                mime="text/plain",
-                use_container_width=True
-            )
-            
-        st.markdown("#### プレビュー確認")
-        tab_m1, tab_m2 = st.tabs(["📄 台本テキストプレビュー", "🎬 SRT字幕プレビュー"])
-        with tab_m1:
-            st.text_area("Script Preview", value=res2["plain_part"], height=220)
-        with tab_m2:
-            st.text_area("SRT Preview", value=res2["s_part"], height=220)
-            
-        if res2["m_part"]:
-            st.markdown("#### 📝 YouTube運用メタデータ")
-            st.text_area("Metadata Preview", value=res2["m_part"], height=140)
+        st.text_area("翻訳内容", value=res_m2, height=300)
 
-# ----------------- モード3: 1文クイック -----------------
 with tab3:
-    st.markdown("""
-    <div class="card-box">
-        <div class="step-header">
-            <span class="step-pill">STEP 3</span>
-            <span class="step-title">1文クイック提案（テロップ・サムネイル用インパクト文字）</span>
-        </div>
-        <p style="font-size:0.88rem; color:#94A3B8; margin: 4px 0 0 0;">「これってネイティブなら何て言う？」を即座に解決。スラング・サムネ煽り・日常会話の3パターンを同時提案します。</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    single_phrase = st.text_input("翻訳したいフレーズを入力", placeholder="例: Hit me up / マジで許せないんだけど、これどう思う？")
-    btn_single = st.button("⚡ 複数の表現・スラングを提案", type="primary", key="btn_s")
-    
-    if btn_single:
-        if not active_key:
-            st.error("⚠️ 左側サイドバーにGoogle Geminiの無料APIキーを入力してください。")
-        elif not single_phrase.strip():
-            st.warning("⚠️ フレーズを入力してください。")
+    st.markdown("#### ⚡ 1文クイック提案（無料辞書モード）")
+    phrase = st.text_input("ネイティブ表現を知りたい日本語フレーズ", placeholder="例: マジでやばい、調子乗るなよ")
+    if st.button("💡 3パターン同時提案", use_container_width=True):
+        if not st.session_state.gemini_api_key:
+            st.error("左サイドバーに Gemini API Key を入力してください。")
+        elif not phrase:
+            st.warning("フレーズを入力してください。")
         else:
-            with st.spinner("🤖 Geminiが複数の言い回しを考案中..."):
-                try:
-                    client = genai.Client(api_key=active_key)
-                    single_prompt = f"""以下のフレーズについて、直訳ではなくYouTubeネイティブが使う以下の4パターンを出力してください：
-フレーズ: 「{single_phrase}」
-対象言語: {target_lang}
-ジャンル: {channel_genre}
-
-1. **スラング・カジュアル（感情的・リアルな若者言葉）**
-2. **サムネイル用（2〜3単語で目立つ超短縮インパクト表現）**
-3. **ナチュラル標準（誰にでも通じる自然な日常会話）**
-4. **解説（ニュアンスの違いを1行で）**
-"""
-                    res_text = execute_with_auto_healing(
-                        client=client,
-                        contents=single_prompt,
-                        sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
+            try:
+                with st.spinner("提案生成中..."):
+                    client = genai.Client(api_key=st.session_state.gemini_api_key)
+                    prompt = f"{get_system_prompt()}\n\n次のフレーズについて、「若者スラング」「サムネ用短縮表現」「日常会話」の3パターンとニュアンス解説を出力してください: 『{phrase}』"
+                    res = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=prompt
                     )
-                    st.markdown("### 💡 提案結果")
-                    st.markdown(res_text)
-                except Exception as e:
-                    st.error(f"エラー詳細: {e}")
+                    st.markdown(res.text)
+            except Exception as e:
+                st.error(f"エラー: {e}")
