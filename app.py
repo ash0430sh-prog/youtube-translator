@@ -1,5 +1,7 @@
 """
-TRANSLY PRO | Gemini 100% Free Core Edition (Cyberpunk Seamless Header & Cute Holo-Bot)
+TRANSLY PRO | Gemini 100% Free Core Edition (Long Video Ready)
+- アップロード後の動画処理完了（ACTIVEステータス）を自動待機
+- ロング動画・大容量ファイルでも503混雑エラーを防止
 """
 
 import streamlit as st
@@ -16,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ホログラムサイバースタイルCSS（最上部ヘッダー完全統合版）
+# ホログラムサイバースタイルCSS
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+JP:wght@500;700;900&display=swap');
@@ -25,7 +27,7 @@ st.markdown("""
         font-family: 'Noto Sans JP', sans-serif;
     }
     
-    /* 最上部ヘッダーバーのサイバー化（白浮きの完全排除） */
+    /* 最上部ヘッダー */
     header[data-testid="stHeader"] {
         background: rgba(5, 8, 17, 0.85) !important;
         backdrop-filter: blur(16px) !important;
@@ -48,7 +50,7 @@ st.markdown("""
         display: none !important;
     }
     
-    /* アプリ全体背景 */
+    /* 背景 */
     .stApp {
         background-color: #050811;
         background-image: 
@@ -61,7 +63,7 @@ st.markdown("""
         color: #E2E8F0;
     }
     
-    /* 入力欄・結果テキストエリア（高コントラスト） */
+    /* テキストエリア */
     textarea, [data-baseweb="textarea"] textarea {
         background-color: #090E1A !important;
         color: #F8FAFC !important;
@@ -76,14 +78,13 @@ st.markdown("""
         border-color: #00F2FE !important;
         box-shadow: 0 0 12px rgba(0, 242, 254, 0.4) !important;
     }
-    
     [data-testid="stTextArea"] label {
         color: #38BDF8 !important;
         font-weight: 700 !important;
         font-size: 1rem !important;
     }
     
-    /* 左サイドバー */
+    /* サイドバー */
     [data-testid="stSidebar"] {
         background: rgba(6, 11, 24, 0.96) !important;
         border-right: 1px solid rgba(0, 242, 254, 0.2) !important;
@@ -107,7 +108,7 @@ st.markdown("""
         text-shadow: 0 0 12px rgba(0, 242, 254, 0.5);
     }
 
-    /* メインヘッダーカード */
+    /* ヘッダーカード */
     .hero-container {
         position: relative;
         background: linear-gradient(135deg, rgba(13, 22, 44, 0.8) 0%, rgba(8, 15, 30, 0.9) 100%);
@@ -121,7 +122,6 @@ st.markdown("""
         overflow: hidden;
     }
     
-    /* 可愛いサイバーボット構造 */
     .holo-wrapper {
         position: absolute;
         right: 40px;
@@ -315,7 +315,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-TARGET_MODEL = "gemini-3.6-flash"
+# 優先順位付きの安定モデルリスト
+FALLBACK_MODELS = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
 
 def get_mime_type(file_name):
     ext = file_name.split('.')[-1].lower()
@@ -384,27 +385,30 @@ def get_system_instruction(lang, genre, custom):
 ルール: {custom if custom else "なし"}
 """
 
-def generate_with_retry(client, contents, sys_inst, max_retries=3):
+def generate_with_smart_fallback(client, contents, sys_inst):
     last_err = None
-    for attempt in range(max_retries):
-        try:
-            response = client.models.generate_content(
-                model=TARGET_MODEL,
-                contents=contents,
-                config=types.GenerateContentConfig(system_instruction=sys_inst)
-            )
-            return response.text
-        except Exception as e:
-            last_err = e
-            err_str = str(e)
-            if "503" in err_str or "UNAVAILABLE" in err_str or "high demand" in err_str:
-                time.sleep(3)
-                continue
-            else:
-                raise e
+    for model_name in FALLBACK_MODELS:
+        for attempt in range(2):
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=contents,
+                    config=types.GenerateContentConfig(system_instruction=sys_inst)
+                )
+                return response.text
+            except Exception as e:
+                last_err = e
+                err_str = str(e)
+                if "404" in err_str or "NOT_FOUND" in err_str:
+                    break
+                elif "503" in err_str or "UNAVAILABLE" in err_str or "high demand" in err_str:
+                    time.sleep(3)
+                    continue
+                else:
+                    break
     raise last_err
 
-# メインヘッダー（可愛いサイバーボット搭載）
+# メインヘッダー
 st.markdown("""
 <div class="hero-container">
     <div class="holo-wrapper">
@@ -461,8 +465,8 @@ with tab1:
         elif not media_file:
             st.warning("⚠️ 動画または音声ファイルをアップロードしてください。")
         else:
-            with st.status("🤖 ホログラムAIが完全無料でメディアを直接処理中...", expanded=True) as status:
-                st.write("📦 1/2 メディアデータを安全に展開中...")
+            with st.status("🤖 ホログラムAIが完全無料でメディアを処理中...", expanded=True) as status:
+                st.write("📦 1/3 ファイルを展開・一時保存中...")
                 mime_type = get_mime_type(media_file.name)
                 _, ext = os.path.splitext(media_file.name)
                 with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
@@ -471,9 +475,21 @@ with tab1:
                 
                 try:
                     client = genai.Client(api_key=gemini_key.strip())
-                    st.write("🌐 2/2 音声を解析し、指定されたコンテンツを生成中...")
+                    st.write("☁️ 2/3 Googleサーバーへ転送・内部インデックス処理中...")
                     
                     uploaded_file = client.files.upload(file=tmp_path)
+                    
+                    # ロング動画の処理完了を待機（503防止）
+                    wait_count = 0
+                    while uploaded_file.state.name == "PROCESSING" and wait_count < 30:
+                        time.sleep(3)
+                        uploaded_file = client.files.get(name=uploaded_file.name)
+                        wait_count += 1
+                        
+                    if uploaded_file.state.name == "FAILED":
+                        raise ValueError("Google側での動画解析処理に失敗しました。")
+                    
+                    st.write("🌐 3/3 音声を解析し、指定コンテンツを生成中...")
                     
                     prompt = f"""動画内の会話音声を認識し、以下の指示に従って出力してください。
 【必須項目】
@@ -491,7 +507,7 @@ with tab1:
                     if extras:
                         prompt += "\n【追加生成項目（字幕データの末尾に記載してください）】\n" + "\n".join(extras)
                         
-                    result_text = generate_with_retry(
+                    result_text = generate_with_smart_fallback(
                         client=client,
                         contents=[uploaded_file, prompt],
                         sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
@@ -559,7 +575,7 @@ with tab2:
                     if t_extras:
                         u_prompt += "\n\n末尾に以下を追加してください：\n" + "\n".join(t_extras)
                         
-                    res_text = generate_with_retry(
+                    res_text = generate_with_smart_fallback(
                         client=client,
                         contents=u_prompt,
                         sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
@@ -604,7 +620,7 @@ with tab3:
 3. **ナチュラル標準（誰にでも通じる自然な日常会話）**
 4. **解説（ニュアンスの違いを1行で）**
 """
-                    res_text = generate_with_retry(
+                    res_text = generate_with_smart_fallback(
                         client=client,
                         contents=single_prompt,
                         sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
