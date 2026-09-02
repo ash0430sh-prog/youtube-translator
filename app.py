@@ -1,7 +1,8 @@
 """
-TRANSLY PRO | Gemini 100% Free Core Edition (Custom Component Selector)
-- タイトル案・サムネコピー・概要欄の個別ON/OFF選択に対応
-- 字幕のみの高速出力から運用パック一括出力まで柔軟に切り替え可能
+TRANSLY PRO | Gemini 100% Free Core Edition (Fixed Model: gemini-3.6-flash)
+- モデル名を gemini-3.6-flash に完全統一
+- 出力項目（タイトル案・サムネコピー・概要欄）の個別選択対応
+- ホログラムAI近未来デザイン＆新形式キー(AQ...)対応
 """
 
 import streamlit as st
@@ -238,7 +239,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-CANDIDATE_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"]
+TARGET_MODEL = "gemini-3.6-flash"
 
 def get_mime_type(file_name):
     ext = file_name.split('.')[-1].lower()
@@ -307,25 +308,24 @@ def get_system_instruction(lang, genre, custom):
 ルール: {custom if custom else "なし"}
 """
 
-def generate_with_fallback(client, contents, sys_inst):
+def generate_with_retry(client, contents, sys_inst, max_retries=3):
     last_err = None
-    for model_name in CANDIDATE_MODELS:
-        for attempt in range(2):
-            try:
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=contents,
-                    config=types.GenerateContentConfig(system_instruction=sys_inst)
-                )
-                return response.text
-            except Exception as e:
-                last_err = e
-                err_str = str(e)
-                if "503" in err_str or "UNAVAILABLE" in err_str or "high demand" in err_str:
-                    time.sleep(2)
-                    continue
-                else:
-                    break
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model=TARGET_MODEL,
+                contents=contents,
+                config=types.GenerateContentConfig(system_instruction=sys_inst)
+            )
+            return response.text
+        except Exception as e:
+            last_err = e
+            err_str = str(e)
+            if "503" in err_str or "UNAVAILABLE" in err_str or "high demand" in err_str:
+                time.sleep(3)
+                continue
+            else:
+                raise e
     raise last_err
 
 # メインヘッダー
@@ -410,7 +410,7 @@ with tab1:
                     if extras:
                         prompt += "\n【追加生成項目（字幕データの末尾に記載してください）】\n" + "\n".join(extras)
                         
-                    result_text = generate_with_fallback(
+                    result_text = generate_with_retry(
                         client=client,
                         contents=[uploaded_file, prompt],
                         sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
@@ -478,7 +478,7 @@ with tab2:
                     if t_extras:
                         u_prompt += "\n\n末尾に以下を追加してください：\n" + "\n".join(t_extras)
                         
-                    res_text = generate_with_fallback(
+                    res_text = generate_with_retry(
                         client=client,
                         contents=u_prompt,
                         sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
@@ -523,7 +523,7 @@ with tab3:
 3. **ナチュラル標準（誰にでも通じる自然な日常会話）**
 4. **解説（ニュアンスの違いを1行で）**
 """
-                    res_text = generate_with_fallback(
+                    res_text = generate_with_retry(
                         client=client,
                         contents=single_prompt,
                         sys_inst=get_system_instruction(target_lang, channel_genre, custom_rule)
