@@ -1,8 +1,8 @@
 """
 TRANSLY PRO | AI Video Localization System
-- Cyberpunk 3D Core Interface (Optimized Orbit Fitting)
+- Cyberpunk Full Dark Theme (Unified Sidebar Styling)
+- 3D Core Interface
 - Freemium License Protection (Supabase Integration)
-- Direct Free API Key Guidance & Japanese Localization Targets Included
 """
 
 import streamlit as st
@@ -45,17 +45,68 @@ if "m1_result" not in st.session_state:
 if "m2_result" not in st.session_state:
     st.session_state.m2_result = None
 
-# 共通CSSスタイル（Cyberpunk Console Engine）
+# 共通CSSスタイル（サイドバー完全ダーク・サイバー化）
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;600;800&display=swap');
     
+    /* アプリ全体背景 */
     .stApp {
         background: radial-gradient(circle at 50% 10%, #0c162d 0%, #050811 80%);
         color: #E2E8F0;
         font-family: 'Noto Sans JP', sans-serif;
     }
+
+    /* 🌙 サイドバーの完全ダーク・サイバーカラー化 */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #090e1b 0%, #050811 100%) !important;
+        border-right: 1px solid rgba(0, 242, 254, 0.25) !important;
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.6);
+    }
     
+    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3,
+    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h4,
+    [data-testid="stSidebar"] label {
+        color: #E2E8F0 !important;
+        font-family: 'Noto Sans JP', sans-serif;
+    }
+    
+    [data-testid="stSidebar"] hr {
+        border-color: rgba(0, 242, 254, 0.18) !important;
+    }
+
+    /* 入力フォームのサイバー調スタイル */
+    [data-testid="stSidebar"] input,
+    [data-testid="stSidebar"] select,
+    [data-testid="stSidebar"] textarea,
+    [data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"] {
+        background-color: #0d1527 !important;
+        color: #FFFFFF !important;
+        border: 1px solid rgba(0, 242, 254, 0.3) !important;
+        border-radius: 8px !important;
+    }
+    [data-testid="stSidebar"] input:focus,
+    [data-testid="stSidebar"] textarea:focus {
+        border-color: #00F2FE !important;
+        box-shadow: 0 0 10px rgba(0, 242, 254, 0.4) !important;
+    }
+
+    /* サイドバーのボタン */
+    [data-testid="stSidebar"] button {
+        background: #0f1c36 !important;
+        color: #7DD3FC !important;
+        border: 1px solid rgba(0, 242, 254, 0.35) !important;
+        border-radius: 8px !important;
+        transition: all 0.2s ease;
+    }
+    [data-testid="stSidebar"] button:hover {
+        background: rgba(0, 242, 254, 0.2) !important;
+        border-color: #00F2FE !important;
+        color: #FFFFFF !important;
+        box-shadow: 0 0 12px rgba(0, 242, 254, 0.5) !important;
+    }
+
     .hero-container {
         padding: 5px 0 15px 0;
         border-bottom: 1px solid rgba(0, 242, 254, 0.2);
@@ -88,23 +139,26 @@ st.markdown("""
         padding: 6px 14px;
         border-radius: 6px;
         letter-spacing: 0.1em;
-        display: inline-block;
+        display: block;
+        text-align: center;
         box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
     }
     
     .free-badge {
-        background: rgba(148, 163, 184, 0.12);
-        border: 1px solid rgba(148, 163, 184, 0.3);
+        background: rgba(148, 163, 184, 0.1);
+        border: 1px solid rgba(148, 163, 184, 0.25);
         color: #94A3B8;
         font-family: 'Orbitron', sans-serif;
         font-weight: 700;
-        font-size: 0.78rem;
-        padding: 5px 12px;
+        font-size: 0.76rem;
+        padding: 6px 10px;
         border-radius: 6px;
-        display: inline-block;
+        display: block;
+        text-align: center;
+        letter-spacing: 0.05em;
     }
 
-    /* ロックカード（高精細サイバー隔壁） */
+    /* ロックカード */
     .cyber-lock-box {
         background: linear-gradient(180deg, rgba(13, 22, 44, 0.85) 0%, rgba(5, 10, 22, 0.95) 100%);
         border: 1px solid rgba(0, 242, 254, 0.35);
@@ -163,19 +217,20 @@ st.markdown("""
         border-radius: 20px;
     }
     .api-link-box {
-        background: rgba(0, 242, 254, 0.06);
+        background: rgba(0, 242, 254, 0.07);
         border-left: 3px solid #00F2FE;
-        padding: 8px 12px;
+        padding: 10px 12px;
         font-size: 0.82rem;
-        color: #7DD3FC;
-        margin-top: 6px;
+        color: #94A3B8;
+        margin-top: 8px;
         margin-bottom: 12px;
-        border-radius: 0 6px 6px 0;
+        border-radius: 0 8px 8px 0;
+        line-height: 1.5;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# 3D AI Robot コンポーネント（見切れ解消版）
+# 3D AI Robot コンポーネント
 def render_cyber_robot(height=310):
     robot_html = f"""
     <!DOCTYPE html>
@@ -213,7 +268,6 @@ def render_cyber_robot(height=310):
         const coreGroup = new THREE.Group();
         scene.add(coreGroup);
 
-        // 外殻ワイヤーフレーム球
         const sphereGeo = new THREE.SphereGeometry(1.15, 24, 24);
         const sphereMat = new THREE.MeshBasicMaterial({{
           color: 0x00F2FE,
@@ -224,7 +278,6 @@ def render_cyber_robot(height=310):
         const outerSphere = new THREE.Mesh(sphereGeo, sphereMat);
         coreGroup.add(outerSphere);
 
-        // コア多面体（発光体）
         const coreGeo = new THREE.IcosahedronGeometry(0.68, 1);
         const coreMat = new THREE.MeshStandardMaterial({{
           color: 0x8E2DE2,
@@ -236,19 +289,16 @@ def render_cyber_robot(height=310):
         const coreMesh = new THREE.Mesh(coreGeo, coreMat);
         coreGroup.add(coreMesh);
 
-        // 軌道リング1
         const ring1Geo = new THREE.TorusGeometry(1.5, 0.02, 16, 100);
         const ring1Mat = new THREE.MeshBasicMaterial({{ color: 0x00F2FE, transparent: true, opacity: 0.85 }});
         const ring1 = new THREE.Mesh(ring1Geo, ring1Mat);
         coreGroup.add(ring1);
 
-        // 軌道リング2
         const ring2Geo = new THREE.TorusGeometry(1.68, 0.015, 16, 100);
         const ring2Mat = new THREE.MeshBasicMaterial({{ color: 0xFF007F, transparent: true, opacity: 0.7 }});
         const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
         coreGroup.add(ring2);
 
-        // ライティング
         const light = new THREE.PointLight(0x00F2FE, 2.2, 50);
         light.position.set(5, 5, 5);
         scene.add(light);
@@ -257,7 +307,6 @@ def render_cyber_robot(height=310):
         scene.add(light2);
         scene.add(new THREE.AmbientLight(0x222233));
 
-        // マウス追従
         let mouseX = 0, mouseY = 0;
         document.addEventListener('mousemove', (e) => {{
           mouseX = (e.clientX / window.innerWidth - 0.5) * 1.5;
@@ -354,9 +403,9 @@ with st.sidebar:
     
     st.markdown("""
     <div class="api-link-box">
-        💡 <strong>Gemini APIはクレカ不要・完全無料</strong>で誰でも取得可能です。<br>
+        💡 <strong>Gemini APIはクレカ不要・完全無料</strong>で誰でも即座に取得可能です。<br>
         <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#00F2FE; font-weight:bold; text-decoration:underline;">
-            👉 Google AI Studio で無料APIキーを発行する
+            👉 Google AI Studio で無料APIキーを発行
         </a>
     </div>
     """, unsafe_allow_html=True)
