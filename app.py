@@ -1,8 +1,7 @@
 """
-TRANSLY PRO | Gemini 100% Free Core Edition (Fixed Model: gemini-3.6-flash)
-- モデル名を gemini-3.6-flash に完全統一
-- 出力項目（タイトル案・サムネコピー・概要欄）の個別選択対応
-- ホログラムAI近未来デザイン＆新形式キー(AQ...)対応
+TRANSLY PRO | Gemini 100% Free Core Edition (High Contrast Result Box)
+- テキストエリア・出力結果エリアの文字色を純白＋高コントラスト化
+- 背景をダークネイビー＋ネオン枠にして文字視認性を最大化
 """
 
 import streamlit as st
@@ -19,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ホログラムサイバースタイルCSS
+# ホログラムサイバースタイルCSS（テキストエリア視認性強化版）
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+JP:wght@500;700;900&display=swap');
@@ -40,6 +39,30 @@ st.markdown("""
         color: #E2E8F0;
     }
     
+    /* 入力欄・結果テキストエリア（白とび防止・高コントラスト） */
+    textarea, [data-baseweb="textarea"] textarea {
+        background-color: #090E1A !important;
+        color: #F8FAFC !important;
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
+        line-height: 1.6 !important;
+        border: 1px solid rgba(0, 242, 254, 0.35) !important;
+        border-radius: 10px !important;
+        box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6) !important;
+    }
+    textarea:focus, [data-baseweb="textarea"] textarea:focus {
+        border-color: #00F2FE !important;
+        box-shadow: 0 0 12px rgba(0, 242, 254, 0.4) !important;
+    }
+    
+    /* テキストエリアのラベル */
+    [data-testid="stTextArea"] label {
+        color: #38BDF8 !important;
+        font-weight: 700 !important;
+        font-size: 1rem !important;
+    }
+    
+    /* サイドバー高視認性 */
     [data-testid="stSidebar"] {
         background: rgba(6, 11, 24, 0.96) !important;
         border-right: 1px solid rgba(0, 242, 254, 0.2) !important;
@@ -425,7 +448,7 @@ with tab1:
                         
             if result_text:
                 st.markdown("### 📥 生成された結果")
-                st.text_area("Gemini Output", value=result_text, height=350)
+                st.text_area("Gemini Output", value=result_text, height=380)
                 st.download_button(
                     "💾 結果データをダウンロード (.srt / .txt)",
                     data=result_text,
