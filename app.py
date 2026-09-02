@@ -1,14 +1,12 @@
 """
-TRANSLY PRO | Gemini 100% Free Core Edition
-- Google AI Studio (Gemini 2.5 Flash / 1.5 Flash) 無料APIキー対応
-- クレジットカード登録不要・完全0円で動画/音声の文字起こし・ネイティブ翻訳・YouTubeマーケ素材生成が可能
-- 前回のホログラムAIロボットUIをそのまま完全継承
+TRANSLY PRO | Gemini 100% Free Core Edition (Fixed Upload & Processing)
 """
 
 import streamlit as st
 import google.generativeai as genai
 import tempfile
 import os
+import time
 
 st.set_page_config(
     page_title="TRANSLY PRO | 完全無料 AI動画ローカライズ",
@@ -237,6 +235,18 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# 拡張子ごとのMIMEタイプ判定関数
+def get_mime_type(file_name):
+    ext = file_name.split('.')[-1].lower()
+    mime_map = {
+        'mp4': 'video/mp4',
+        'mov': 'video/quicktime',
+        'mp3': 'audio/mp3',
+        'wav': 'audio/wav',
+        'm4a': 'audio/mp4'
+    }
+    return mime_map.get(ext, 'video/mp4')
+
 # サイドバー（Gemini 100%無料キー）
 with st.sidebar:
     st.markdown("### ⚡ FREE AI KEY")
@@ -249,7 +259,7 @@ with st.sidebar:
     gemini_key = st.text_input("🔑 Google Gemini API Key", type="password", placeholder="AIzaSy...")
     model_choice = st.selectbox(
         "🧠 搭載モデル（すべて完全無料）",
-        ["gemini-2.5-flash (超高速・動画認識・最新)", "gemini-1.5-flash (高精度・大容量対応)"]
+        ["gemini-1.5-flash", "gemini-2.0-flash"]
     )
     
     st.divider()
@@ -299,7 +309,7 @@ def get_system_instruction(lang, genre, custom):
 def run_gemini(api_key, model_str, prompt, parts=[]):
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(
-        model_name=model_str.split()[0],
+        model_name=model_str,
         system_instruction=get_system_instruction(target_lang, channel_genre, custom_rule)
     )
     content = parts + [prompt]
@@ -327,7 +337,7 @@ tab1, tab2, tab3 = st.tabs([
     "⚡ 【MODE 3】 1文クイック提案（テロップ/サムネ）"
 ])
 
-# ----------------- モード1 -----------------
+# ----------------- モード1: 動画・音声投入 -----------------
 with tab1:
     st.markdown("""
     <div class="card-box">
@@ -350,17 +360,28 @@ with tab1:
             st.warning("⚠️ 動画または音声ファイルをアップロードしてください。")
         else:
             with st.status("🤖 ホログラムAIが完全無料でメディアを直接処理中...", expanded=True) as status:
-                st.write("📤 1/2 動画・音声データをGeminiへ安全に一時転送中...")
+                st.write("📤 1/3 ファイルを準備中...")
                 _, ext = os.path.splitext(media_file.name)
+                mime_type = get_mime_type(media_file.name)
+                
                 with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
                     tmp.write(media_file.getvalue())
                     tmp_path = tmp.name
                 
                 try:
                     genai.configure(api_key=gemini_key)
-                    uploaded_file = genai.upload_file(path=tmp_path)
+                    st.write(f"☁️ 2/3 Geminiへ転送・メディア解析待機中 ({mime_type})...")
+                    uploaded_file = genai.upload_file(path=tmp_path, mime_type=mime_type)
                     
-                    st.write("🌐 2/2 音声を直接解析し、ネイティブ字幕(SRT)＆YouTubeメタデータを生成中...")
+                    # 動画処理が完了するまでポーリング待機
+                    while uploaded_file.state.name == "PROCESSING":
+                        time.sleep(2)
+                        uploaded_file = genai.get_file(uploaded_file.name)
+                        
+                    if uploaded_file.state.name == "FAILED":
+                        raise ValueError("Geminiでの動画解析に失敗しました。")
+                    
+                    st.write("🌐 3/3 音声を直接解析し、ネイティブ字幕(SRT)＆YouTubeメタデータを生成中...")
                     prompt = f"""アップロードされたメディアの音声を認識し、以下の指示に従って出力してください。
 1. 日本語の会話を直訳せず、{target_lang}のYouTubeネイティブが使う自然な日常会話・スラングに意訳したSRT形式の字幕データを出力してください。
 2. タイムコードは正確に付与してください。
@@ -386,7 +407,7 @@ with tab1:
                 file_name=f"free_translated_{media_file.name}.srt"
             )
 
-# ----------------- モード2 -----------------
+# ----------------- モード2: 台本・長文コピペ -----------------
 with tab2:
     st.markdown("""
     <div class="card-box">
@@ -422,7 +443,7 @@ with tab2:
                 st.text_area("Translated Output", value=res_txt, height=280)
                 st.download_button("💾 翻訳結果を保存 (.txt)", data=res_txt, file_name="translated_script.txt")
 
-# ----------------- モード3 -----------------
+# ----------------- モード3: 1文クイック -----------------
 with tab3:
     st.markdown("""
     <div class="card-box">
