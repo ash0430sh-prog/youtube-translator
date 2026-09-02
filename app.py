@@ -5,14 +5,12 @@ TRANSLY PRO | AI Video Localization System
 - 3D Core Interface
 - Freemium License Protection (Stripe + Supabase Integration)
 - Direct Free API Key Guidance & Japanese Localization Targets Included
-- 3-Mode Architecture & Auto-Generated Cyberspace Slide Banner
+- 3-Mode Architecture & HTML-based Cyberspace Slide Guide
 """
 
 import streamlit as st
 import streamlit.components.v1 as components
 import json
-import os
-from PIL import Image, ImageDraw, ImageFont
 
 # ページ基本設定
 st.set_page_config(
@@ -34,52 +32,6 @@ if "saved_gemini_key" not in st.session_state:
 # STRIPE 決済リンク設定
 # ==========================================
 STRIPE_PAYMENT_URL = "https://buy.stripe.com/aFacN72GA4KiaIb9T46sw00"
-
-# ==========================================
-# ガイド＆料金スライド画像を自動生成する関数
-# ==========================================
-def generate_slide_banner():
-    img_width, img_height = 1000, 420
-    img = Image.new("RGB", (img_width, img_height), (10, 16, 35))
-    draw = ImageDraw.Draw(img)
-
-    # ネオン調の外枠を描画
-    draw.rectangle([10, 10, img_width - 10, img_height - 10], outline=(0, 242, 254), width=2)
-    
-    # 区切り線（縦）
-    draw.line([(330, 30), (330, img_height - 30)], fill=(0, 120, 130), width=1)
-    draw.line([(665, 30), (665, img_height - 30)], fill=(0, 120, 130), width=1)
-
-    try:
-        font_title = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial Bold.ttf", 20)
-        font_sub = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial.ttf", 15)
-        font_step = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial Bold.ttf", 26)
-    except:
-        font_title = ImageFont.load_default()
-        font_sub = ImageFont.load_default()
-        font_step = ImageFont.load_default()
-
-    # スライド1: STEP 1
-    draw.text((45, 35), "STEP 01", fill=(0, 242, 254), font=font_step)
-    draw.text((45, 85), "Gemini APIキー設定", fill=(255, 255, 255), font=font_title)
-    draw.text((45, 130), "Google AI Studioから\n完全無料のAPIキーを取得し\nサイドバーに入力・保存します。", fill=(148, 163, 184), font=font_sub)
-
-    # スライド2: STEP 2
-    draw.text((365, 35), "STEP 02", fill=(0, 242, 254), font=font_step)
-    draw.text((365, 85), "モードを選ぶ・翻訳", fill=(255, 255, 255), font=font_title)
-    draw.text((365, 130), "MODE 2（テキスト翻訳）や\nMODE 3（YouTube URL解析）は\nいつでも無料で使えます。", fill=(148, 163, 184), font=font_sub)
-
-    # スライド3: STEP 3 (PRO)
-    draw.text((700, 35), "STEP 03", fill=(255, 0, 127), font=font_step)
-    draw.text((700, 85), "PROプランで全開放", fill=(255, 255, 255), font=font_title)
-    draw.text((700, 130), "長尺動画の音声抽出・翻訳\n(MODE 1) を利用するには\n初月無料プランへ登録！", fill=(148, 163, 184), font=font_sub)
-
-    # フッター文言
-    draw.text((45, 360), "⚡ TRANSLY PRO // All-in-One AI Localization System", fill=(0, 150, 170), font=font_sub)
-
-    path = "slide_guide.png"
-    img.save(path)
-    return path
 
 # 共通CSSスタイル
 st.markdown("""
@@ -486,12 +438,44 @@ with tab3:
             else:
                 st.info("YouTube動画のメタデータおよび字幕ストリームを解析中...")
 
-# 📖 使い方ガイド ＆ 料金プラン（スライド画像表示）
+# 📖 使い方ガイド ＆ 料金プラン（HTMLスライドカード形式）
 with tab4:
     st.markdown("### 📖 TRANSLY PRO ご利用ガイド & 料金プラン")
     
-    slide_path = generate_slide_banner()
-    st.image(slide_path, use_container_width=True)
+    st.markdown("""
+    <div style="
+        display: flex; 
+        gap: 15px; 
+        background: rgba(13, 22, 44, 0.85); 
+        border: 1px solid rgba(0, 242, 254, 0.35); 
+        border-radius: 12px; 
+        padding: 25px; 
+        margin-bottom: 25px;
+        box-shadow: 0 0 20px rgba(0, 242, 254, 0.1);
+    ">
+        <div style="flex: 1; border-right: 1px solid rgba(0, 242, 254, 0.2); padding-right: 15px;">
+            <h4 style="color: #00F2FE; font-family: Orbitron; margin-top:0;">STEP 01</h4>
+            <p style="font-weight: bold; color: #FFFFFF; margin-bottom: 6px;">Gemini APIキー設定</p>
+            <p style="font-size: 0.82rem; color: #94A3B8; line-height: 1.5;">
+                Google AI Studioから完全無料のAPIキーを取得し、サイドバーに入力・保存します。
+            </p>
+        </div>
+        <div style="flex: 1; border-right: 1px solid rgba(0, 242, 254, 0.2); padding-right: 15px; padding-left: 5px;">
+            <h4 style="color: #00F2FE; font-family: Orbitron; margin-top:0;">STEP 02</h4>
+            <p style="font-weight: bold; color: #FFFFFF; margin-bottom: 6px;">モードを選ぶ・翻訳</p>
+            <p style="font-size: 0.82rem; color: #94A3B8; line-height: 1.5;">
+                MODE 2（テキスト翻訳）やMODE 3（YouTube URL解析）はいつでも無料で使えます。
+            </p>
+        </div>
+        <div style="flex: 1; padding-left: 5px;">
+            <h4 style="color: #FF007F; font-family: Orbitron; margin-top:0;">STEP 03</h4>
+            <p style="font-weight: bold; color: #FFFFFF; margin-bottom: 6px;">PROプランで全開放</p>
+            <p style="font-size: 0.82rem; color: #94A3B8; line-height: 1.5;">
+                長尺動画の音声抽出・翻訳(MODE 1)を利用するには初月無料プランへ登録！
+            </p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("---")
     
