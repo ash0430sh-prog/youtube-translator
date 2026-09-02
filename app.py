@@ -1,5 +1,5 @@
 """
-TRANSLY PRO | Self-Healing Architecture + Local Persistent Key Storage (Compact Sidebar Buttons)
+TRANSLY PRO | Self-Healing Architecture + Local Persistent Key Storage (High Contrast Sidebar Buttons)
 """
 
 import streamlit as st
@@ -107,15 +107,28 @@ st.markdown("""
         text-shadow: 0 0 12px rgba(0, 242, 254, 0.5);
     }
 
-    /* サイドバー内ボタンの文字切れ防止＆コンパクト化 */
+    /* サイドバーの「記憶」「消去」ボタンスタイル（黒文字＋高コントラスト発光ボタン） */
     [data-testid="stSidebar"] div.stButton > button {
+        background: linear-gradient(135deg, #00F2FE 0%, #4FACFE 100%) !important;
+        color: #050811 !important;
         padding: 0.45rem 0.2rem !important;
-        font-size: 0.85rem !important;
-        font-weight: 800 !important;
-        letter-spacing: 0 !important;
+        font-size: 0.88rem !important;
+        font-weight: 900 !important;
+        letter-spacing: 0.02em !important;
         white-space: nowrap !important;
         border-radius: 8px !important;
+        border: none !important;
+        box-shadow: 0 2px 12px rgba(0, 242, 254, 0.35) !important;
         margin-top: 4px !important;
+    }
+    [data-testid="stSidebar"] div.stButton > button:hover {
+        filter: brightness(1.15) !important;
+        box-shadow: 0 0 16px rgba(0, 242, 254, 0.6) !important;
+        transform: translateY(-1px) !important;
+    }
+    [data-testid="stSidebar"] div.stButton > button * {
+        color: #050811 !important;
+        font-weight: 900 !important;
     }
 
     .hero-container {
@@ -300,7 +313,6 @@ st.markdown("""
         margin-bottom: 20px;
     }
 
-    /* メインエリアのアクションボタン */
     .stMainBlockContainer div.stButton > button:first-child {
         font-family: 'Orbitron', 'Noto Sans JP', sans-serif;
         background: linear-gradient(135deg, #00F2FE 0%, #0072FF 100%);
@@ -347,7 +359,7 @@ def discover_active_models(client):
     except Exception:
         return ["gemini-3.6-flash"]
 
-# サイドバー（キー入力＆コンパクト保存・消去ボタン）
+# サイドバー（高コントラストボタン）
 with st.sidebar:
     st.markdown("### ⚡ FREE AI KEY")
     st.caption("🎁 **完全無料（0円）で利用可能**")
