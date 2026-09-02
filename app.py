@@ -1,9 +1,8 @@
 """
 TRANSLY PRO | AI Video Localization System
-- Cyberpunk 3D Core Interface
+- Cyberpunk 3D Core Interface (Optimized Orbit Fitting)
 - Freemium License Protection (Supabase Integration)
-- State-Preserving Multi-Format Translator (SRT/TXT)
-- Full Auto-Healing Fallback Engine
+- Direct Free API Key Guidance & Japanese Localization Targets Included
 """
 
 import streamlit as st
@@ -58,14 +57,14 @@ st.markdown("""
     }
     
     .hero-container {
-        padding: 10px 0 20px 0;
+        padding: 5px 0 15px 0;
         border-bottom: 1px solid rgba(0, 242, 254, 0.2);
-        margin-bottom: 25px;
+        margin-bottom: 20px;
     }
     .hero-title {
         font-family: 'Orbitron', sans-serif;
         font-weight: 900;
-        font-size: 2.3rem;
+        font-size: 2.2rem;
         letter-spacing: 0.12em;
         background: linear-gradient(135deg, #00F2FE 0%, #4FACFE 50%, #8E2DE2 100%);
         -webkit-background-clip: text;
@@ -76,7 +75,7 @@ st.markdown("""
     .hero-sub {
         font-family: 'Share Tech Mono', monospace;
         color: #7DD3FC;
-        font-size: 0.95rem;
+        font-size: 0.92rem;
         letter-spacing: 0.08em;
     }
 
@@ -115,7 +114,7 @@ st.markdown("""
         text-align: center;
         position: relative;
         overflow: hidden;
-        margin-top: 10px;
+        margin-top: 15px;
     }
     .cyber-lock-box::before {
         content: "";
@@ -163,11 +162,21 @@ st.markdown("""
         padding: 6px 14px;
         border-radius: 20px;
     }
+    .api-link-box {
+        background: rgba(0, 242, 254, 0.06);
+        border-left: 3px solid #00F2FE;
+        padding: 8px 12px;
+        font-size: 0.82rem;
+        color: #7DD3FC;
+        margin-top: 6px;
+        margin-bottom: 12px;
+        border-radius: 0 6px 6px 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# 3D AI Robot コンポーネント
-def render_cyber_robot(height=280):
+# 3D AI Robot コンポーネント（見切れ解消版）
+def render_cyber_robot(height=310):
     robot_html = f"""
     <!DOCTYPE html>
     <html>
@@ -184,7 +193,7 @@ def render_cyber_robot(height=280):
         }}
         canvas {{
           display: block;
-          filter: drop-shadow(0 0 25px rgba(0, 242, 254, 0.45));
+          filter: drop-shadow(0 0 20px rgba(0, 242, 254, 0.45));
         }}
       </style>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -192,9 +201,9 @@ def render_cyber_robot(height=280):
     <body>
       <script>
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.z = 4.8;
-        camera.position.y = 0.2;
+        const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 5.4;
+        camera.position.y = 0.0;
 
         const renderer = new THREE.WebGLRenderer({{ alpha: true, antialias: true }});
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -205,7 +214,7 @@ def render_cyber_robot(height=280):
         scene.add(coreGroup);
 
         // 外殻ワイヤーフレーム球
-        const sphereGeo = new THREE.SphereGeometry(1.3, 24, 24);
+        const sphereGeo = new THREE.SphereGeometry(1.15, 24, 24);
         const sphereMat = new THREE.MeshBasicMaterial({{
           color: 0x00F2FE,
           wireframe: true,
@@ -216,26 +225,26 @@ def render_cyber_robot(height=280):
         coreGroup.add(outerSphere);
 
         // コア多面体（発光体）
-        const coreGeo = new THREE.IcosahedronGeometry(0.75, 1);
+        const coreGeo = new THREE.IcosahedronGeometry(0.68, 1);
         const coreMat = new THREE.MeshStandardMaterial({{
           color: 0x8E2DE2,
           roughness: 0.2,
           metalness: 0.8,
           emissive: 0x00F2FE,
-          emissiveIntensity: 0.6
+          emissiveIntensity: 0.65
         }});
         const coreMesh = new THREE.Mesh(coreGeo, coreMat);
         coreGroup.add(coreMesh);
 
         // 軌道リング1
-        const ring1Geo = new THREE.TorusGeometry(1.65, 0.02, 16, 100);
-        const ring1Mat = new THREE.MeshBasicMaterial({{ color: 0x00F2FE, transparent: true, opacity: 0.8 }});
+        const ring1Geo = new THREE.TorusGeometry(1.5, 0.02, 16, 100);
+        const ring1Mat = new THREE.MeshBasicMaterial({{ color: 0x00F2FE, transparent: true, opacity: 0.85 }});
         const ring1 = new THREE.Mesh(ring1Geo, ring1Mat);
         coreGroup.add(ring1);
 
         // 軌道リング2
-        const ring2Geo = new THREE.TorusGeometry(1.85, 0.015, 16, 100);
-        const ring2Mat = new THREE.MeshBasicMaterial({{ color: 0xFF007F, transparent: true, opacity: 0.65 }});
+        const ring2Geo = new THREE.TorusGeometry(1.68, 0.015, 16, 100);
+        const ring2Mat = new THREE.MeshBasicMaterial({{ color: 0xFF007F, transparent: true, opacity: 0.7 }});
         const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
         coreGroup.add(ring2);
 
@@ -337,16 +346,37 @@ with st.sidebar:
 
     st.markdown("---")
     
-    st.markdown("#### 🔑 Gemini API Key (0円)")
+    # 無料APIキー誘導セクション
+    st.markdown("#### 🔑 Gemini API Key (完全無料・0円)")
     user_key = st.text_input("Google AI Studio Key", value=st.session_state.gemini_api_key, type="password")
     if user_key:
         st.session_state.gemini_api_key = user_key.strip()
+    
+    st.markdown("""
+    <div class="api-link-box">
+        💡 <strong>Gemini APIはクレカ不要・完全無料</strong>で誰でも取得可能です。<br>
+        <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#00F2FE; font-weight:bold; text-decoration:underline;">
+            👉 Google AI Studio で無料APIキーを発行する
+        </a>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("---")
     st.markdown("#### 🌐 ローカライズ設定")
     target_lang = st.selectbox(
         "翻訳先言語",
-        ["英語 (US日常会話/スラング)", "英語 (ビジネス/丁寧)", "韓国語", "繁体字中国語 (台湾/香港)", "スペイン語"]
+        [
+            "日本語 (自然なYouTube口語・エンタメ風)",
+            "日本語 (ビジネス / 解説・丁寧)",
+            "英語 (US日常会話 / スラング)",
+            "英語 (ビジネス / 丁寧)",
+            "韓国語 (日常会話 / トレンド)",
+            "繁体字中国語 (台湾 / 香港)",
+            "簡体字中国語",
+            "スペイン語",
+            "タイ語",
+            "インドネシア語"
+        ]
     )
     video_genre = st.selectbox(
         "動画ジャンル・世界観",
@@ -389,8 +419,9 @@ def get_system_prompt():
 個別指定ルール: {custom_rule}
 
 【厳守原則】
-- 直訳は厳禁。ネイティブがショート動画やYouTubeで自然に使う口語・スラングに翻訳すること。
-- 字幕は1行あたり短く保ち、スマホ画面で一瞬で読めるテンポにすること。
+- 直訳は厳禁。ターゲット言語圏のネイティブがショート動画やYouTubeで自然に使う口語・スラング・言い回しに翻訳すること。
+- 日本語へ翻訳する場合は、海外動画特有の硬い翻訳調を徹底排除し、日本のトップYouTuberが喋っているようなテンポ良い自然な日本語にすること。
+- 字幕は1行あたり短く保ち、スマホ画面で一瞬で読めるリズムにすること。
 """
 
 # ==========================================
@@ -413,9 +444,9 @@ tab1, tab2, tab3 = st.tabs([
 # TAB 1: 動画・音声直接投入 (PRO限定)
 # ----------------------------------------------------
 with tab1:
+    render_cyber_robot(height=310)
+
     if not st.session_state.is_pro_active:
-        render_cyber_robot(height=260)
-        
         st.markdown("""
         <div class="cyber-lock-box">
             <div class="lock-hud-tag">// SECURITY PROTOCOL: RESTRICTED ACCESS</div>
@@ -435,7 +466,6 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
     else:
-        render_cyber_robot(height=200)
         st.markdown("#### 🎬 メディアファイルを直接インジェクション")
         uploaded_file = st.file_uploader("動画・音声を選択 (MP4, MOV, MP3)", type=["mp4", "mov", "mp3", "m4a", "wav"])
         gen_meta = st.checkbox("クリック率特化タイトル案・サムネ英文・概要欄も同時生成する", value=True)
@@ -497,7 +527,7 @@ with tab1:
 # ----------------------------------------------------
 with tab2:
     st.markdown("#### 📋 台本テキスト / SRT字幕 コピペ翻訳（無料）")
-    input_text = st.text_area("翻訳したい日本語台本またはSRT字幕を貼り付け", height=200)
+    input_text = st.text_area("翻訳したい台本またはSRT字幕を貼り付け", height=200)
     
     if st.button("🚀 無料AIでネイティブ意訳する", type="primary", use_container_width=True):
         if not st.session_state.gemini_api_key:
@@ -547,7 +577,7 @@ with tab2:
 # ----------------------------------------------------
 with tab3:
     st.markdown("#### ⚡ 1文クイック提案（無料辞書モード）")
-    phrase = st.text_input("ネイティブ表現を知りたい日本語フレーズ", placeholder="例: マジでやばい、調子乗るなよ")
+    phrase = st.text_input("ネイティブ表現を知りたいフレーズ", placeholder="例: マジでやばい、調子乗るなよ、What are you up to?")
     if st.button("💡 3パターン同時提案", use_container_width=True):
         if not st.session_state.gemini_api_key:
             st.error("左サイドバーに Gemini API Key を入力してください。")
