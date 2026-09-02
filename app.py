@@ -1,11 +1,12 @@
 """
-TRANSLY PRO | Self-Healing Dynamic Model Architecture
-- モデル名の固定値を完全撤廃
-- client.models.list() により現在利用可能な最新Flashモデルを動的検出・自動適応
-- 404 / 503 等のエラーはユーザー画面に出さずバックグラウンドで自動修復
+TRANSLY PRO | Self-Healing Architecture + Local Persistent Key Storage
+- ブラウザのローカルストレージ（localStorage）を活用したAPIキー永続保存
+- 2回目以降のコピペ不要・キー自動ロード＆削除機能
+- モデル動的自動検知・自己修復・近未来サイバーボットUI
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 from google import genai
 from google.genai import types
 import tempfile
@@ -18,6 +19,10 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# セッション状態の初期化
+if "gemini_api_key" not in st.session_state:
+    st.session_state.gemini_api_key = ""
 
 # ホログラムサイバースタイルCSS
 st.markdown("""
@@ -321,7 +326,6 @@ def get_mime_type(file_name):
     }
     return mime_map.get(ext, 'video/mp4')
 
-# Google APIから現在使用可能なモデル一覧を動的取得
 def discover_active_models(client):
     try:
         available = []
@@ -329,13 +333,12 @@ def discover_active_models(client):
             name = m.name.replace("models/", "")
             if "flash" in name.lower() and "thinking" not in name.lower():
                 available.append(name)
-        # 降順ソート（最新世代を先頭に）
         available.sort(reverse=True)
         return available if available else ["gemini-3.6-flash"]
     except Exception:
         return ["gemini-3.6-flash"]
 
-# サイドバー
+# サイドバー（キー永続化UI）
 with st.sidebar:
     st.markdown("### ⚡ FREE AI KEY")
     st.caption("🎁 **完全無料（0円）で利用可能**")
@@ -344,8 +347,54 @@ with st.sidebar:
     👉 [**無料APIキーを取得する**](https://aistudio.google.com/app/apikey)
     """)
     
-    gemini_key = st.text_input("🔑 Google Gemini API Key", type="password", placeholder="AQ... または AIza...")
+    # クライアント側（ブラウザ）ストレージとのやり取り用JS
+    storage_sync_code = """
+    <script>
+    const saved = localStorage.getItem('transly_gemini_key');
+    if (saved && !window.parent.location.hash.includes('loaded')) {
+        const input = window.parent.document.querySelector('input[type="password"]');
+        if (input && !input.value) {
+            input.value = saved;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+    </script>
+    """
+    components.html(storage_sync_code, height=0)
     
+    gemini_key = st.text_input(
+        "🔑 Google Gemini API Key",
+        type="password",
+        value=st.session_state.gemini_api_key,
+        placeholder="AQ... または AIza..."
+    )
+    
+    col_k1, col_k2 = st.columns(2)
+    with col_k1:
+        save_key_btn = st.button("💾 キーを記憶", use_container_width=True)
+    with col_k2:
+        clear_key_btn = st.button("🗑️ キー消去", use_container_width=True)
+        
+    if save_key_btn and gemini_key.strip():
+        st.session_state.gemini_api_key = gemini_key.strip()
+        js_save = f"""
+        <script>
+        localStorage.setItem('transly_gemini_key', '{gemini_key.strip()}');
+        </script>
+        """
+        components.html(js_save, height=0)
+        st.success("ブラウザにキーを記憶しました！次回から自動入力されます。")
+        
+    if clear_key_btn:
+        st.session_state.gemini_api_key = ""
+        js_clear = """
+        <script>
+        localStorage.removeItem('transly_gemini_key');
+        </script>
+        """
+        components.html(js_clear, height=0)
+        st.info("記憶したキーを消去しました。")
+
     st.divider()
     st.markdown("### 🌐 LOCALIZE CORE")
     
@@ -391,7 +440,6 @@ def get_system_instruction(lang, genre, custom):
 ルール: {custom if custom else "なし"}
 """
 
-# バックグラウンド自動修復実行エンジン（エラーを自動検知して生存モデルへ迂回）
 def execute_with_auto_healing(client, contents, sys_inst):
     active_models = discover_active_models(client)
     last_exception = None
@@ -408,10 +456,8 @@ def execute_with_auto_healing(client, contents, sys_inst):
             except Exception as e:
                 last_exception = e
                 err_str = str(e)
-                # 404（廃止）なら即座に次のモデルへ
                 if "404" in err_str or "NOT_FOUND" in err_str:
                     break
-                # 503（混雑）なら2秒待って同一モデルでリトライ、ダメなら次へ
                 elif "503" in err_str or "UNAVAILABLE" in err_str:
                     time.sleep(2)
                     continue
@@ -470,8 +516,10 @@ with tab1:
         
     btn_video = st.button("⚡ 無料AIで動画を解析・ローカライズ開始", type="primary", key="btn_v")
     
+    active_key = gemini_key.strip() or st.session_state.gemini_api_key
+    
     if btn_video:
-        if not gemini_key:
+        if not active_key:
             st.error("⚠️ 左側サイドバーにGoogle Geminiの無料APIキーを入力してください。")
         elif not media_file:
             st.warning("⚠️ 動画または音声ファイルをアップロードしてください。")
@@ -485,7 +533,7 @@ with tab1:
                     tmp_path = tmp.name
                 
                 try:
-                    client = genai.Client(api_key=gemini_key.strip())
+                    client = genai.Client(api_key=active_key)
                     st.write("☁️ 2/3 Googleサーバーへ転送・インデックス待機中...")
                     
                     uploaded_file = client.files.upload(file=tmp_path)
@@ -564,14 +612,14 @@ with tab2:
     btn_text = st.button("🚀 無料AIでテキストをネイティブ意訳する", type="primary", key="btn_t")
     
     if btn_text:
-        if not gemini_key:
+        if not active_key:
             st.error("⚠️ 左側サイドバーにGoogle Geminiの無料APIキーを入力してください。")
         elif not raw_text.strip():
             st.warning("⚠️ テキストを入力してください。")
         else:
             with st.spinner("🤖 Geminiが文脈とスラングを考慮して自然に翻訳中..."):
                 try:
-                    client = genai.Client(api_key=gemini_key.strip())
+                    client = genai.Client(api_key=active_key)
                     if "SRT" in text_input_type:
                         u_prompt = f"以下のSRT字幕のタイムコードを崩さず、テキスト部分のみを{target_lang}向けに自然に意訳してください:\n\n{raw_text}"
                     else:
@@ -612,14 +660,14 @@ with tab3:
     btn_single = st.button("⚡ 複数の表現・スラングを提案", type="primary", key="btn_s")
     
     if btn_single:
-        if not gemini_key:
+        if not active_key:
             st.error("⚠️ 左側サイドバーにGoogle Geminiの無料APIキーを入力してください。")
         elif not single_phrase.strip():
             st.warning("⚠️ フレーズを入力してください。")
         else:
             with st.spinner("🤖 Geminiが複数の言い回しを考案中..."):
                 try:
-                    client = genai.Client(api_key=gemini_key.strip())
+                    client = genai.Client(api_key=active_key)
                     single_prompt = f"""以下のフレーズについて、直訳ではなくYouTubeネイティブが使う以下の4パターンを出力してください：
 フレーズ: 「{single_phrase}」
 対象言語: {target_lang}
