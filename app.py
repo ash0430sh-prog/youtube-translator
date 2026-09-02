@@ -40,15 +40,15 @@ STRIPE_PAYMENT_URL = "https://buy.stripe.com/aFacN72GA4KiaIb9T46sw00"
 # ==========================================
 def generate_slide_banner():
     img_width, img_height = 1000, 420
-    img = Image.new("RGBA", (img_width, img_height), (10, 16, 35, 255))
+    img = Image.new("RGB", (img_width, img_height), (10, 16, 35))
     draw = ImageDraw.Draw(img)
 
     # ネオン調の外枠を描画
-    draw.rectangle([10, 10, img_width - 10, img_height - 10], outline=(0, 242, 254, 180), width=2)
+    draw.rectangle([10, 10, img_width - 10, img_height - 10], outline=(0, 242, 254), width=2)
     
     # 区切り線（縦）
-    draw.line([(330, 30), (330, img_height - 30)], fill=(0, 242, 254, 60), width=1)
-    draw.line([(665, 30), (665, img_height - 30)], fill=(0, 242, 254, 60), width=1)
+    draw.line([(330, 30), (330, img_height - 30)], fill=(0, 120, 130), width=1)
+    draw.line([(665, 30), (665, img_height - 30)], fill=(0, 120, 130), width=1)
 
     try:
         font_title = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial Bold.ttf", 20)
@@ -60,23 +60,22 @@ def generate_slide_banner():
         font_step = ImageFont.load_default()
 
     # スライド1: STEP 1
-    draw.text((45, 35), "STEP 01", fill=(0, 242, 254, 255), font=font_step)
-    draw.text((45, 85), "Gemini APIキー設定", fill=(255, 255, 255, 255), font=font_title)
-    draw.text((45, 130), "Google AI Studioから\n完全無料のAPIキーを取得し\nサイドバーに入力・保存します。", fill=(148, 163, 184, 255), font=font_sub)
+    draw.text((45, 35), "STEP 01", fill=(0, 242, 254), font=font_step)
+    draw.text((45, 85), "Gemini APIキー設定", fill=(255, 255, 255), font=font_title)
+    draw.text((45, 130), "Google AI Studioから\n完全無料のAPIキーを取得し\nサイドバーに入力・保存します。", fill=(148, 163, 184), font=font_sub)
 
     # スライド2: STEP 2
-    draw.text((365, 35), "STEP 02", fill=(0, 242, 254, 255), font=font_step)
-    draw.text((365, 85), "モードを選ぶ・翻訳", fill=(255, 255, 255, 255), font=font_title)
-    draw.text((365, 130), "MODE 2（テキスト翻訳）や\nMODE 3（YouTube URL解析）は\nいつでも無料で使えます。", fill=(148, 163, 184, 255), font=font_sub)
+    draw.text((365, 35), "STEP 02", fill=(0, 242, 254), font=font_step)
+    draw.text((365, 85), "モードを選ぶ・翻訳", fill=(255, 255, 255), font=font_title)
+    draw.text((365, 130), "MODE 2（テキスト翻訳）や\nMODE 3（YouTube URL解析）は\nいつでも無料で使えます。", fill=(148, 163, 184), font=font_sub)
 
     # スライド3: STEP 3 (PRO)
-    draw.text((700, 35), "STEP 03", fill=(255, 0, 127, 255), font=font_step)
-    draw.text((700, 85), "PROプランで全開放", fill=(255, 255, 255, 255), font=font_title)
-    draw.text((700, 130), "長尺動画の音声抽出・翻訳\n(MODE 1) を利用するには\n初月無料プランへ登録！", fill=(148, 163, 184, 255), font=font_sub)
+    draw.text((700, 35), "STEP 03", fill=(255, 0, 127), font=font_step)
+    draw.text((700, 85), "PROプランで全開放", fill=(255, 255, 255), font=font_title)
+    draw.text((700, 130), "長尺動画の音声抽出・翻訳\n(MODE 1) を利用するには\n初月無料プランへ登録！", fill=(148, 163, 184), font=font_sub)
 
     # フッター文言
-    draw.draw = draw
-    draw.text((45, 360), "⚡ TRANSLY PRO // All-in-One AI Localization System", fill=(0, 242, 254, 150), font=font_sub)
+    draw.text((45, 360), "⚡ TRANSLY PRO // All-in-One AI Localization System", fill=(0, 150, 170), font=font_sub)
 
     path = "slide_guide.png"
     img.save(path)
@@ -487,17 +486,15 @@ with tab3:
             else:
                 st.info("YouTube動画のメタデータおよび字幕ストリームを解析中...")
 
-# 📖 使い方ガイド ＆ 料金プラン（自動生成スライド画像＋料金表）
+# 📖 使い方ガイド ＆ 料金プラン（スライド画像表示）
 with tab4:
     st.markdown("### 📖 TRANSLY PRO ご利用ガイド & 料金プラン")
     
-    # スライド画像を生成して表示
     slide_path = generate_slide_banner()
     st.image(slide_path, use_container_width=True)
     
     st.markdown("---")
     
-    # 料金プラン比較セクション
     price_col1, price_col2 = st.columns(2)
     
     with price_col1:
