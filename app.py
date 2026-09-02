@@ -1,12 +1,10 @@
 """
-TRANSLY PRO | Gemini 100% Free Core Edition (Audio Extractor Fixed)
-- 動画から音声を自動抽出して軽量送信（大容量エラーを完全防止）
-- 英語動画→自然な日本語、日本語動画→ネイティブ英語の双方向翻訳対応
-- ホログラムAI近未来デザイン＆完全無料Gemini API対応
+TRANSLY PRO | Gemini Next-Gen API Edition (AQ... & AIza... Both Supported)
 """
 
 import streamlit as st
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import tempfile
 import os
 
@@ -237,7 +235,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 拡張子ごとのMIMEタイプ判定
 def get_mime_type(file_name):
     ext = file_name.split('.')[-1].lower()
     mime_map = {
@@ -258,7 +255,7 @@ with st.sidebar:
     👉 [**無料APIキーを取得する**](https://aistudio.google.com/app/apikey)
     """)
     
-    gemini_key = st.text_input("🔑 Google Gemini API Key", type="password", placeholder="AIzaSy...")
+    gemini_key = st.text_input("🔑 Google Gemini API Key", type="password", placeholder="AQ... または AIza...")
     
     st.divider()
     st.markdown("### 🌐 LOCALIZE CORE")
@@ -294,7 +291,7 @@ with st.sidebar:
     )
 
 def get_system_instruction(lang, genre, custom):
-    return f"""あなたは世界トップレベルのYouTube映像翻訳ディレクターです。
+    return f"""あなたは世界トップレベルの映像翻訳・ローカライズディレクターです。
 
 【最重要ミッション】
 「直訳」を徹底的に排除してください。
@@ -326,7 +323,7 @@ tab1, tab2, tab3 = st.tabs([
     "⚡ 【MODE 3】 1文クイック提案（テロップ/サムネ）"
 ])
 
-# ----------------- モード1: 動画・音声投入 -----------------
+# ----------------- モード1: 動画投入 -----------------
 with tab1:
     st.markdown("""
     <div class="card-box">
@@ -334,7 +331,7 @@ with tab1:
             <span class="step-pill">STEP 1</span>
             <span class="step-title">動画または音声ファイルをアップロード（完全無料）</span>
         </div>
-        <p style="font-size:0.88rem; color:#94A3B8; margin: 4px 0 0 0;">MP4 / MOV / MP3 などを入れるだけで、音声認識からローカライズ字幕・運用メタデータまで一括出力します。</p>
+        <p style="font-size:0.88rem; color:#94A3B8; margin: 4px 0 0 0;">MP4 / MOV / MP3 などを入れるだけで、Geminiが直接動画・音声を認識してネイティブ字幕を生成します。</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -349,40 +346,37 @@ with tab1:
             st.warning("⚠️ 動画または音声ファイルをアップロードしてください。")
         else:
             with st.status("🤖 ホログラムAIが完全無料でメディアを直接処理中...", expanded=True) as status:
-                st.write("📦 1/2 メディアデータを安全に準備中...")
+                st.write("📦 1/2 メディアデータを安全に展開中...")
                 mime_type = get_mime_type(media_file.name)
-                
-                # 一時ファイルへ保存
                 _, ext = os.path.splitext(media_file.name)
                 with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
                     tmp.write(media_file.getvalue())
                     tmp_path = tmp.name
                 
                 try:
-                    genai.configure(api_key=gemini_key)
+                    client = genai.Client(api_key=gemini_key.strip())
                     st.write("🌐 2/2 音声を解析し、超自然な字幕(SRT)＆メタデータを生成中...")
                     
-                    # 安定モデルの指定
-                    model = genai.GenerativeModel(
-                        model_name="gemini-1.5-flash",
-                        system_instruction=get_system_instruction(target_lang, channel_genre, custom_rule)
-                    )
-                    
-                    # Google File API への確実なアップロード
-                    uploaded_file = genai.upload_file(path=tmp_path, mime_type=mime_type)
+                    uploaded_file = client.files.upload(file=tmp_path)
                     
                     prompt = f"""動画内の会話音声を認識し、以下の指示に従って出力してください。
 1. 直訳を完全に避け、{target_lang}のYouTube/TikTok視聴者がスッと理解できる自然な口語・スラングに意訳したSRT字幕データを出力してください。
-2. タイムコード（00:00:00,000 --> 00:00:00,000）を付けてください。
+2. タイムコード（00:00:00,000 --> 00:00:00,000）を正確に付与してください。
 """
                     if gen_meta_video:
-                        prompt += f"""
+                        prompt += """
 3. さらに動画の最後（または字幕の後）に、以下のコンテンツを記載してください：
 - 【クリック率特化タイトル案 3選】
 - 【サムネイル用キャッチコピー（2〜4単語のインパクト文字）】
 - 【概要欄・ハッシュタグ】
 """
-                    response = model.generate_content([uploaded_file, prompt])
+                    response = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=[uploaded_file, prompt],
+                        config=types.GenerateContentConfig(
+                            system_instruction=get_system_instruction(target_lang, channel_genre, custom_rule)
+                        )
+                    )
                     result_text = response.text
                     status.update(label="✨ 完全無料でのローカライズが完了しました！", state="complete", expanded=False)
                 except Exception as e:
@@ -401,7 +395,7 @@ with tab1:
                     file_name=f"translated_{media_file.name}.srt"
                 )
 
-# ----------------- モード2: 台本・長文コピペ -----------------
+# ----------------- モード2: 台本コピペ -----------------
 with tab2:
     st.markdown("""
     <div class="card-box">
@@ -425,22 +419,27 @@ with tab2:
             st.warning("⚠️ テキストを入力してください。")
         else:
             with st.spinner("🤖 Geminiが文脈とスラングを考慮して自然に翻訳中..."):
-                genai.configure(api_key=gemini_key)
-                model = genai.GenerativeModel(
-                    model_name="gemini-1.5-flash",
-                    system_instruction=get_system_instruction(target_lang, channel_genre, custom_rule)
-                )
-                if "SRT" in text_input_type:
-                    u_prompt = f"以下のSRT字幕のタイムコードを崩さず、テキスト部分のみを{target_lang}向けに自然に意訳してください:\n\n{raw_text}"
-                else:
-                    u_prompt = f"以下の台本を、直訳を避けて{target_lang}向けに自然な口調に翻訳してください:\n\n{raw_text}"
-                if gen_meta_text:
-                    u_prompt += "\n\nさらにクリックされるタイトル3案とサムネ用コピーを末尾に提案してください。"
-                    
-                res = model.generate_content(u_prompt)
-                st.markdown("### 📥 翻訳結果")
-                st.text_area("Translated Output", value=res.text, height=280)
-                st.download_button("💾 翻訳結果を保存 (.txt)", data=res.text, file_name="translated_script.txt")
+                try:
+                    client = genai.Client(api_key=gemini_key.strip())
+                    if "SRT" in text_input_type:
+                        u_prompt = f"以下のSRT字幕のタイムコードを崩さず、テキスト部分のみを{target_lang}向けに自然に意訳してください:\n\n{raw_text}"
+                    else:
+                        u_prompt = f"以下の台本を、直訳を避けて{target_lang}向けに自然な口調に翻訳してください:\n\n{raw_text}"
+                    if gen_meta_text:
+                        u_prompt += "\n\nさらにクリックされるタイトル3案とサムネ用コピーを末尾に提案してください。"
+                        
+                    response = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=u_prompt,
+                        config=types.GenerateContentConfig(
+                            system_instruction=get_system_instruction(target_lang, channel_genre, custom_rule)
+                        )
+                    )
+                    st.markdown("### 📥 翻訳結果")
+                    st.text_area("Translated Output", value=response.text, height=280)
+                    st.download_button("💾 翻訳結果を保存 (.txt)", data=response.text, file_name="translated_script.txt")
+                except Exception as e:
+                    st.error(f"エラー詳細: {e}")
 
 # ----------------- モード3: 1文クイック -----------------
 with tab3:
@@ -464,12 +463,9 @@ with tab3:
             st.warning("⚠️ フレーズを入力してください。")
         else:
             with st.spinner("🤖 Geminiが複数の言い回しを考案中..."):
-                genai.configure(api_key=gemini_key)
-                model = genai.GenerativeModel(
-                    model_name="gemini-1.5-flash",
-                    system_instruction=get_system_instruction(target_lang, channel_genre, custom_rule)
-                )
-                single_prompt = f"""以下のフレーズについて、直訳ではなくYouTubeネイティブが使う以下の4パターンを出力してください：
+                try:
+                    client = genai.Client(api_key=gemini_key.strip())
+                    single_prompt = f"""以下のフレーズについて、直訳ではなくYouTubeネイティブが使う以下の4パターンを出力してください：
 フレーズ: 「{single_phrase}」
 対象言語: {target_lang}
 ジャンル: {channel_genre}
@@ -479,6 +475,14 @@ with tab3:
 3. **ナチュラル標準（誰にでも通じる自然な日常会話）**
 4. **解説（ニュアンスの違いを1行で）**
 """
-                res = model.generate_content(single_prompt)
-                st.markdown("### 💡 提案結果")
-                st.markdown(res.text)
+                    response = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=single_prompt,
+                        config=types.GenerateContentConfig(
+                            system_instruction=get_system_instruction(target_lang, channel_genre, custom_rule)
+                        )
+                    )
+                    st.markdown("### 💡 提案結果")
+                    st.markdown(response.text)
+                except Exception as e:
+                    st.error(f"エラー詳細: {e}")
