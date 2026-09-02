@@ -1,24 +1,23 @@
 """
-TRANSLY PRO | AI Hologram Core Edition
-- 提示されたホログラムAIロボットの世界観を完全再現
-- サイバー・データベース空間でホログラムロボットがパルス発光しながら浮遊するアニメーション
-- 高度なネオンシアン（#00F2FE）アクセント ＆ グラスモーフィズムUI
-- 視認性を極限まで高めたUI・ボタン・タブ
+TRANSLY PRO | Gemini 100% Free Core Edition
+- Google AI Studio (Gemini 2.5 Flash / 1.5 Flash) 無料APIキー対応
+- クレジットカード登録不要・完全0円で動画/音声の文字起こし・ネイティブ翻訳・YouTubeマーケ素材生成が可能
+- 前回のホログラムAIロボットUIをそのまま完全継承
 """
 
 import streamlit as st
-import anthropic
-import openai
-import os
+import google.generativeai as genai
 import tempfile
+import os
 
 st.set_page_config(
-    page_title="TRANSLY PRO | AI Hologram Studio",
+    page_title="TRANSLY PRO | 完全無料 AI動画ローカライズ",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
+# ホログラムサイバースタイルCSS
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+JP:wght@500;700;900&display=swap');
@@ -27,7 +26,6 @@ st.markdown("""
         font-family: 'Noto Sans JP', sans-serif;
     }
     
-    /* 深層サイバーラボ背景 */
     .stApp {
         background-color: #050811;
         background-image: 
@@ -40,7 +38,6 @@ st.markdown("""
         color: #E2E8F0;
     }
     
-    /* サイドバー高視認性デザイン */
     [data-testid="stSidebar"] {
         background: rgba(6, 11, 24, 0.96) !important;
         border-right: 1px solid rgba(0, 242, 254, 0.2) !important;
@@ -64,7 +61,6 @@ st.markdown("""
         text-shadow: 0 0 12px rgba(0, 242, 254, 0.5);
     }
 
-    /* メインヘッダーカード */
     .hero-container {
         position: relative;
         background: linear-gradient(135deg, rgba(13, 22, 44, 0.8) 0%, rgba(8, 15, 30, 0.9) 100%);
@@ -78,7 +74,6 @@ st.markdown("""
         overflow: hidden;
     }
     
-    /* ホログラム投影ロボットアニメーション */
     .holo-wrapper {
         position: absolute;
         right: 35px;
@@ -157,7 +152,6 @@ st.markdown("""
         max-width: 78%;
     }
     
-    /* タブデザイン（極太・近未来発光） */
     .stTabs [data-baseweb="tab-list"] {
         gap: 14px;
         background-color: rgba(10, 18, 38, 0.7);
@@ -184,7 +178,6 @@ st.markdown("""
         box-shadow: 0 0 25px rgba(0, 242, 254, 0.55) !important;
     }
 
-    /* ステップバッジ */
     .step-header {
         display: flex;
         align-items: center;
@@ -221,7 +214,6 @@ st.markdown("""
         margin-bottom: 20px;
     }
 
-    /* 実行ボタン（ホログラム・ネオンシアン） */
     div.stButton > button:first-child {
         font-family: 'Orbitron', 'Noto Sans JP', sans-serif;
         background: linear-gradient(135deg, #00F2FE 0%, #0072FF 100%);
@@ -245,24 +237,21 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# サイドバー設計
+# サイドバー（Gemini 100%無料キー）
 with st.sidebar:
-    st.markdown("### ⚡ SYSTEM & KEYS")
-    st.caption("🔒 キーはお客様のブラウザ内でのみ安全に利用され、外部に保存されません。")
+    st.markdown("### ⚡ FREE AI KEY")
+    st.caption("🎁 **完全無料（0円）で利用可能**")
+    st.markdown("""
+    Google AI Studioで即座に無料取得できます（クレカ不要）。  
+    👉 [**無料APIキーを取得する**](https://aistudio.google.com/app/apikey)
+    """)
     
-    openai_key = st.text_input("🔑 OpenAI API Key (音声文字起こし・AI)", type="password", placeholder="sk-...")
-    engine = st.selectbox(
-        "🧠 翻訳AIモデル",
-        ["Claude 3.5 Sonnet (推奨：圧倒的に自然な意訳)", "GPT-4o (OpenAI)"]
+    gemini_key = st.text_input("🔑 Google Gemini API Key", type="password", placeholder="AIzaSy...")
+    model_choice = st.selectbox(
+        "🧠 搭載モデル（すべて完全無料）",
+        ["gemini-2.5-flash (超高速・動画認識・最新)", "gemini-1.5-flash (高精度・大容量対応)"]
     )
     
-    if "Claude" in engine:
-        claude_key = st.text_input("🔑 Anthropic API Key (翻訳用)", type="password", placeholder="sk-ant-...")
-        model_name = "claude-3-5-sonnet-20241022"
-    else:
-        claude_key = ""
-        model_name = "gpt-4o"
-        
     st.divider()
     st.markdown("### 🌐 LOCALIZE CORE")
     
@@ -295,64 +284,29 @@ with st.sidebar:
         placeholder="例: 主人公の『イッチ』はフランクに。専門用語『○○』は訳さずそのままアルファベット表記にして。"
     )
 
-def get_system_prompt(lang, genre, custom):
-    return f"""あなたは世界トップレベルのYouTube専属ローカライズ・映像翻訳ディレクターです。
-
+def get_system_instruction(lang, genre, custom):
+    return f"""あなたは世界トップレベルのYouTube映像翻訳ディレクターです。
 【最重要ミッション】
-「直訳」を完全に排除してください。
-直訳英語特有の硬さや不自然さをなくし、「ネイティブのYouTuberが普段のテンションで喋っている、あるいは日本人が聞いても違和感がない、生き生きとした感情表現」に意訳・ローカライズしてください。
+「直訳」を徹底的に排除してください。
+直訳英語特有の硬さや不自然さをなくし、ネイティブYouTuberが普段のテンションで喋っている、あるいは日本人が聞いても納得できる自然なスラング・日常会話表現に意訳してください。
 
-【対象言語】: {lang}
-【動画ジャンル】: {genre}
-【個別ルール】: {custom if custom else "特になし"}
-
-【翻訳方針】
-1. **文脈優先の意訳**: 日本語独特の相槌や感情のニュアンスを、ネイティブが直感的に笑える・共感できるスラングや慣用表現に変換してください。
-2. **文字数・テンポの配慮**: 動画内で視聴者が0.5秒〜1秒で読めるよう、無駄に長い文構造を避け、パンチのある言葉を選んでください。
-3. **字幕形式の保護**: SRTデータの場合、番号とタイムコード（00:00:00,000 --> 00:00:00,000）は絶対に1文字も崩さず、テキスト部分のみを入れ替えてください。
+対象言語: {lang}
+動画ジャンル: {genre}
+ルール: {custom if custom else "なし"}
 """
 
-def call_ai(prompt, user_content, engine_choice, o_key, c_key, m_name):
-    if "Claude" in engine_choice:
-        client = anthropic.Anthropic(api_key=c_key)
-        res = client.messages.create(
-            model=m_name,
-            max_tokens=4096,
-            system=prompt,
-            messages=[{"role": "user", "content": user_content}],
-            temperature=0.3
-        )
-        return res.content[0].text
-    else:
-        client = openai.OpenAI(api_key=o_key)
-        res = client.chat.completions.create(
-            model=m_name,
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": user_content}
-            ],
-            temperature=0.3
-        )
-        return res.choices[0].message.content
+# Gemini API呼び出し
+def run_gemini(api_key, model_str, prompt, parts=[]):
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(
+        model_name=model_str.split()[0],
+        system_instruction=get_system_instruction(target_lang, channel_genre, custom_rule)
+    )
+    content = parts + [prompt]
+    res = model.generate_content(content)
+    return res.text
 
-def transcribe_media(file_bytes, file_ext, key):
-    client = openai.OpenAI(api_key=key)
-    with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
-        tmp.write(file_bytes)
-        tmp_path = tmp.name
-    try:
-        with open(tmp_path, "rb") as audio_file:
-            srt = client.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file,
-                response_format="srt"
-            )
-        return srt
-    finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
-
-# メインヘッダー（ホログラムロボット投影UI）
+# メインヘッダー
 st.markdown("""
 <div class="hero-container">
     <div class="holo-wrapper">
@@ -361,13 +315,12 @@ st.markdown("""
         </div>
         <div class="holo-base"></div>
     </div>
-    <div class="hero-badge">⚡ CYBERNETIC AI CORE</div>
-    <div class="hero-title">TRANSLY PRO 映像ローカライズ</div>
-    <div class="hero-desc">直訳を完全排除。ネイティブYouTubeスラングや自然な口語表現に完全意訳。<br>動画から直接字幕SRT・海外向けタイトル3選・概要欄・サムネ用英文まで一撃生成します。</div>
+    <div class="hero-badge">⚡ 100% FREE AI CORE</div>
+    <div class="hero-title">TRANSLY PRO 完全無料ローカライズ</div>
+    <div class="hero-desc">追加課金・クレカ登録ゼロ！Google公式の完全無料枠で、動画直接投入から字幕SRT・タイトル案・サムネ英文まで一撃生成します。</div>
 </div>
 """, unsafe_allow_html=True)
 
-# 3つの投入モードタブ
 tab1, tab2, tab3 = st.tabs([
     "🎬 【MODE 1】 動画・音声を直接投入（全自動）",
     "📋 【MODE 2】 台本・SRT字幕コピペ翻訳",
@@ -380,80 +333,58 @@ with tab1:
     <div class="card-box">
         <div class="step-header">
             <span class="step-pill">STEP 1</span>
-            <span class="step-title">動画または音声ファイルをアップロード</span>
+            <span class="step-title">動画または音声ファイルをアップロード（完全無料）</span>
         </div>
-        <p style="font-size:0.88rem; color:#94A3B8; margin: 4px 0 0 0;">MP4 / MOV / MP3 などを入れるだけで、音声認識からローカライズ字幕・運用メタデータまで一括出力します。</p>
+        <p style="font-size:0.88rem; color:#94A3B8; margin: 4px 0 0 0;">MP4 / MOV / MP3 などを入れるだけで、Geminiが直接動画・音声を認識してネイティブ字幕を生成します。</p>
     </div>
     """, unsafe_allow_html=True)
     
     media_file = st.file_uploader("動画・音声ファイルをドロップ", type=["mp4", "mov", "mp3", "wav", "m4a"], key="u_media")
-    
-    col_opt1, _ = st.columns([1, 1])
-    with col_opt1:
-        gen_meta_video = st.checkbox("🎯 海外向けタイトル3案・概要欄・サムネ用コピーも同時生成する", value=True)
-        
-    btn_video = st.button("⚡ ホログラムAIで動画を自動解析・翻訳開始", type="primary", key="btn_v")
+    gen_meta_video = st.checkbox("🎯 海外向けタイトル3案・概要欄・サムネ用コピーも同時生成する", value=True)
+    btn_video = st.button("⚡ 無料AIで動画を自動解析・翻訳開始", type="primary", key="btn_v")
     
     if btn_video:
-        if not openai_key:
-            st.error("⚠️ 音声認識のため、左側サイドバーに「OpenAI API Key」を入力してください。")
-        elif "Claude" in engine and not claude_key:
-            st.error("⚠️ 左側サイドバーに「Anthropic API Key」を入力してください。")
+        if not gemini_key:
+            st.error("⚠️ 左側サイドバーにGoogle Geminiの無料APIキーを入力してください。")
         elif not media_file:
             st.warning("⚠️ 動画または音声ファイルをアップロードしてください。")
         else:
-            with st.status("🤖 ホログラムAIが動画ストリームを高速処理中...", expanded=True) as status:
-                st.write("🎙️ 1/3 Whisperによる音声の自動文字起こし中...")
+            with st.status("🤖 ホログラムAIが完全無料でメディアを直接処理中...", expanded=True) as status:
+                st.write("📤 1/2 動画・音声データをGeminiへ安全に一時転送中...")
                 _, ext = os.path.splitext(media_file.name)
-                raw_srt = transcribe_media(media_file.getvalue(), ext, openai_key)
+                with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                    tmp.write(media_file.getvalue())
+                    tmp_path = tmp.name
                 
-                st.write("🌐 2/3 ネイティブが使う自然な口調へ文脈意訳中...")
-                sys_p = get_system_prompt(target_lang, channel_genre, custom_rule)
-                translated_srt = call_ai(
-                    sys_p,
-                    f"以下のSRT字幕のタイムコードを完全に維持し、直訳を避けて最も自然なネイティブ表現に翻訳してください:\n\n{raw_srt}",
-                    engine, openai_key, claude_key, model_name
-                )
-                
-                meta_result = ""
-                if gen_meta_video:
-                    st.write("📈 3/3 海外YouTube向けタイトル3案・概要欄・サムネ用コピーを同時作成中...")
-                    meta_prompt = f"""以下の動画字幕内容から、{target_lang}のYouTube視聴者が思わずクリックしたくなるコンテンツを作成してください。
-【必須出力項目】
-1. **海外向けクリック率特化タイトル案（3パターン）**：煽りすぎず引きが強いもの
-2. **サムネイル用英語キャッチコピー（2〜4単語の短いインパクト文字）**
-3. **SEO最適化概要欄（タイムスタンプ想定や関連タグ含む）**
+                try:
+                    genai.configure(api_key=gemini_key)
+                    uploaded_file = genai.upload_file(path=tmp_path)
+                    
+                    st.write("🌐 2/2 音声を直接解析し、ネイティブ字幕(SRT)＆YouTubeメタデータを生成中...")
+                    prompt = f"""アップロードされたメディアの音声を認識し、以下の指示に従って出力してください。
+1. 日本語の会話を直訳せず、{target_lang}のYouTubeネイティブが使う自然な日常会話・スラングに意訳したSRT形式の字幕データを出力してください。
+2. タイムコードは正確に付与してください。
 """
-                    meta_result = call_ai(
-                        meta_prompt,
-                        f"動画の内容:\n{translated_srt[:2000]}",
-                        engine, openai_key, claude_key, model_name
-                    )
-                status.update(label="✨ すべてのローカライズ処理が完了しました！", state="complete", expanded=False)
-                
-            st.markdown("### 📥 生成されたデータ")
-            col_res1, col_res2 = st.columns(2)
-            with col_res1:
-                st.markdown("##### 🌍 翻訳済み字幕 (SRT)")
-                st.text_area("Translated SRT", value=translated_srt, height=260)
-                st.download_button(
-                    "💾 翻訳字幕をダウンロード (.srt)",
-                    data=translated_srt,
-                    file_name=f"translated_{media_file.name}.srt"
-                )
-            with col_res2:
-                st.markdown("##### 🇯🇵 原文文字起こし (SRT)")
-                st.text_area("Original SRT", value=raw_srt, height=260)
-                st.download_button(
-                    "📄 日本語字幕をダウンロード (.srt)",
-                    data=raw_srt,
-                    file_name=f"original_{media_file.name}.srt"
-                )
-                
-            if meta_result:
-                st.markdown("---")
-                st.markdown("### 🎯 YouTube運用パッケージ（タイトル・サムネ文・概要欄）")
-                st.text_area("YouTube Metadata Package", value=meta_result, height=220)
+                    if gen_meta_video:
+                        prompt += f"""
+3. さらに動画の最後（または字幕の後）に、以下のYouTube運用パッケージを記載してください：
+- 【クリック率特化タイトル案 3選】
+- 【サムネイル用英語キャッチコピー（2〜4単語）】
+- 【SEO最適化概要欄】
+"""
+                    result_text = run_gemini(gemini_key, model_choice, prompt, parts=[uploaded_file])
+                    status.update(label="✨ 完全無料でのローカライズが完了しました！", state="complete", expanded=False)
+                finally:
+                    if os.path.exists(tmp_path):
+                        os.remove(tmp_path)
+                        
+            st.markdown("### 📥 生成された結果")
+            st.text_area("Gemini Output (SRT & Metadata)", value=result_text, height=350)
+            st.download_button(
+                "💾 結果データをダウンロード (.srt / .txt)",
+                data=result_text,
+                file_name=f"free_translated_{media_file.name}.srt"
+            )
 
 # ----------------- モード2 -----------------
 with tab2:
@@ -469,39 +400,27 @@ with tab2:
     
     text_input_type = st.radio("入力するデータの形式", ["日本語の台本テキスト（通常の文章）", "SRT字幕ファイル（タイムコード付き）"], horizontal=True)
     raw_text = st.text_area("台本またはSRT字幕をペースト", height=180, placeholder="テキストを貼り付けてください...")
-    
     gen_meta_text = st.checkbox("この台本からYouTube用タイトル・サムネ案も同時作成する", value=False, key="chk_m2")
-    btn_text = st.button("⚡ テキストをネイティブ意訳する", type="primary", key="btn_t")
+    btn_text = st.button("🚀 無料AIでテキストをネイティブ意訳する", type="primary", key="btn_t")
     
     if btn_text:
-        if not raw_text.strip():
+        if not gemini_key:
+            st.error("⚠️ 左側サイドバーにGoogle Geminiの無料APIキーを入力してください。")
+        elif not raw_text.strip():
             st.warning("⚠️ テキストを入力してください。")
-        elif "Claude" in engine and not claude_key:
-            st.error("⚠️ 左側サイドバーに「Anthropic API Key」を入力してください。")
-        elif "GPT-4o" in engine and not openai_key:
-            st.error("⚠️ 左側サイドバーに「OpenAI API Key」を入力してください。")
         else:
-            with st.spinner("🤖 ホログラムAIが文脈を高速解析中..."):
-                sys_p = get_system_prompt(target_lang, channel_genre, custom_rule)
+            with st.spinner("🤖 Geminiが文脈とスラングを考慮して自然に翻訳中..."):
                 if "SRT" in text_input_type:
-                    u_prompt = f"以下のSRT字幕のタイムコードを1文字も崩さず、テキスト部分のみをネイティブ向けに自然に翻訳してください:\n\n{raw_text}"
+                    u_prompt = f"以下のSRT字幕のタイムコードを崩さず、テキスト部分のみをネイティブ向けに自然に翻訳してください:\n\n{raw_text}"
                 else:
                     u_prompt = f"以下の日本語台本を、直訳を避けてネイティブが自然に共感できる口調に翻訳してください:\n\n{raw_text}"
-                result_text = call_ai(sys_p, u_prompt, engine, openai_key, claude_key, model_name)
-                
-                st.markdown("### 📥 翻訳結果")
-                st.text_area("Translated Output", value=result_text, height=220)
-                st.download_button(
-                    "💾 翻訳テキストをダウンロード (.txt)",
-                    data=result_text,
-                    file_name="translated_script.txt"
-                )
-                
                 if gen_meta_text:
-                    meta_p = f"以下の翻訳台本から、クリックされる英語タイトル3案とサムネ用コピーを提案してください:\n\n{result_text[:2000]}"
-                    meta_res = call_ai(meta_p, "タイトルとサムネ案を生成してください。", engine, openai_key, claude_key, model_name)
-                    st.markdown("##### 🎯 タイトル ＆ サムネ用コピー案")
-                    st.text_area("Metadata", value=meta_res, height=180)
+                    u_prompt += "\n\nさらにクリックされる英語タイトル3案とサムネ用コピーを末尾に提案してください。"
+                    
+                res_txt = run_gemini(gemini_key, model_choice, u_prompt)
+                st.markdown("### 📥 翻訳結果")
+                st.text_area("Translated Output", value=res_txt, height=280)
+                st.download_button("💾 翻訳結果を保存 (.txt)", data=res_txt, file_name="translated_script.txt")
 
 # ----------------- モード3 -----------------
 with tab3:
@@ -519,26 +438,22 @@ with tab3:
     btn_single = st.button("⚡ 複数の表現・スラングを提案", type="primary", key="btn_s")
     
     if btn_single:
-        if not single_phrase.strip():
+        if not gemini_key:
+            st.error("⚠️ 左側サイドバーにGoogle Geminiの無料APIキーを入力してください。")
+        elif not single_phrase.strip():
             st.warning("⚠️ フレーズを入力してください。")
-        elif "Claude" in engine and not claude_key:
-            st.error("⚠️ 左側サイドバーに「Anthropic API Key」を入力してください。")
-        elif "GPT-4o" in engine and not openai_key:
-            st.error("⚠️ 左側サイドバーに「OpenAI API Key」を入力してください。")
         else:
-            with st.spinner("🤖 AIがネイティブのYouTubeスラングや言い回しを考案中..."):
-                single_prompt = f"""あなたはYouTube動画のテロップ・サムネイル作成のプロです。
-日本語フレーズ: 「{single_phrase}」
-動画ジャンル: {channel_genre}
+            with st.spinner("🤖 Geminiが複数の言い回しを考案中..."):
+                single_prompt = f"""以下の日本語フレーズについて、直訳ではなくYouTubeネイティブが使う以下の4パターンを出力してください：
+フレーズ: 「{single_phrase}」
 言語: {target_lang}
+動画ジャンル: {channel_genre}
 
-【指示】
-直訳ではなく、海外のYouTubeやSNSで実際に使われる以下の4パターンの自然な言い回しを出力してください：
-1. **YouTubeスラング・カジュアル（感情的・一番リアルな若者言葉）**
+1. **YouTubeスラング・カジュアル（感情的・リアルな若者言葉）**
 2. **サムネイル用（2〜3単語で目立つ超短縮インパクト表現）**
 3. **ナチュラル標準（誰にでも通じる自然な日常会話）**
-4. **解説（なぜこの表現になるのか、日本語とのニュアンスの違いを1行で）**
+4. **解説（日本語とのニュアンスの違いを1行で）**
 """
-                single_res = call_ai(single_prompt, "パターンの提案をお願いします。", engine, openai_key, claude_key, model_name)
+                res_single = run_gemini(gemini_key, model_choice, single_prompt)
                 st.markdown("### 💡 提案結果")
-                st.markdown(single_res)
+                st.markdown(res_single)
