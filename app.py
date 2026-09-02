@@ -1,12 +1,11 @@
 """
-TRANSLY PRO | Gemini 100% Free Core Edition (Fixed Upload & Processing)
+TRANSLY PRO | Gemini 100% Free Core Edition (Direct Inline Bytes - No File API Error)
 """
 
 import streamlit as st
 import google.generativeai as genai
 import tempfile
 import os
-import time
 
 st.set_page_config(
     page_title="TRANSLY PRO | 完全無料 AI動画ローカライズ",
@@ -235,7 +234,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 拡張子ごとのMIMEタイプ判定関数
+# 拡張子ごとのMIMEタイプ判定
 def get_mime_type(file_name):
     ext = file_name.split('.')[-1].lower()
     mime_map = {
@@ -247,7 +246,7 @@ def get_mime_type(file_name):
     }
     return mime_map.get(ext, 'video/mp4')
 
-# サイドバー（Gemini 100%無料キー）
+# サイドバー
 with st.sidebar:
     st.markdown("### ⚡ FREE AI KEY")
     st.caption("🎁 **完全無料（0円）で利用可能**")
@@ -305,15 +304,17 @@ def get_system_instruction(lang, genre, custom):
 ルール: {custom if custom else "なし"}
 """
 
-# Gemini API呼び出し
-def run_gemini(api_key, model_str, prompt, parts=[]):
+def run_gemini(api_key, model_str, prompt, media_part=None):
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(
         model_name=model_str,
         system_instruction=get_system_instruction(target_lang, channel_genre, custom_rule)
     )
-    content = parts + [prompt]
-    res = model.generate_content(content)
+    if media_part:
+        contents = [media_part, prompt]
+    else:
+        contents = [prompt]
+    res = model.generate_content(contents)
     return res.text
 
 # メインヘッダー
@@ -360,44 +361,30 @@ with tab1:
             st.warning("⚠️ 動画または音声ファイルをアップロードしてください。")
         else:
             with st.status("🤖 ホログラムAIが完全無料でメディアを直接処理中...", expanded=True) as status:
-                st.write("📤 1/3 ファイルを準備中...")
-                _, ext = os.path.splitext(media_file.name)
+                st.write("📦 1/2 メディアデータを安全に展開中...")
                 mime_type = get_mime_type(media_file.name)
+                media_bytes = media_file.getvalue()
                 
-                with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-                    tmp.write(media_file.getvalue())
-                    tmp_path = tmp.name
+                # File APIを使わず直接インラインパートとして生成（エラー回避）
+                media_part = {
+                    "mime_type": mime_type,
+                    "data": media_bytes
+                }
                 
-                try:
-                    genai.configure(api_key=gemini_key)
-                    st.write(f"☁️ 2/3 Geminiへ転送・メディア解析待機中 ({mime_type})...")
-                    uploaded_file = genai.upload_file(path=tmp_path, mime_type=mime_type)
-                    
-                    # 動画処理が完了するまでポーリング待機
-                    while uploaded_file.state.name == "PROCESSING":
-                        time.sleep(2)
-                        uploaded_file = genai.get_file(uploaded_file.name)
-                        
-                    if uploaded_file.state.name == "FAILED":
-                        raise ValueError("Geminiでの動画解析に失敗しました。")
-                    
-                    st.write("🌐 3/3 音声を直接解析し、ネイティブ字幕(SRT)＆YouTubeメタデータを生成中...")
-                    prompt = f"""アップロードされたメディアの音声を認識し、以下の指示に従って出力してください。
+                st.write("🌐 2/2 音声を直接解析し、ネイティブ字幕(SRT)＆YouTubeメタデータを生成中...")
+                prompt = f"""アップロードされたメディアの音声を認識し、以下の指示に従って出力してください。
 1. 日本語の会話を直訳せず、{target_lang}のYouTubeネイティブが使う自然な日常会話・スラングに意訳したSRT形式の字幕データを出力してください。
-2. タイムコードは正確に付与してください。
+2. タイムコード（00:00:00,000 --> 00:00:00,000）を正確に付与してください。
 """
-                    if gen_meta_video:
-                        prompt += f"""
+                if gen_meta_video:
+                    prompt += f"""
 3. さらに動画の最後（または字幕の後）に、以下のYouTube運用パッケージを記載してください：
 - 【クリック率特化タイトル案 3選】
 - 【サムネイル用英語キャッチコピー（2〜4単語）】
 - 【SEO最適化概要欄】
 """
-                    result_text = run_gemini(gemini_key, model_choice, prompt, parts=[uploaded_file])
-                    status.update(label="✨ 完全無料でのローカライズが完了しました！", state="complete", expanded=False)
-                finally:
-                    if os.path.exists(tmp_path):
-                        os.remove(tmp_path)
+                result_text = run_gemini(gemini_key, model_choice, prompt, media_part=media_part)
+                status.update(label="✨ 完全無料でのローカライズが完了しました！", state="complete", expanded=False)
                         
             st.markdown("### 📥 生成された結果")
             st.text_area("Gemini Output (SRT & Metadata)", value=result_text, height=350)
