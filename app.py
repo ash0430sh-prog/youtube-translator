@@ -1,8 +1,5 @@
 """
-TRANSLY PRO | Self-Healing Architecture + Local Persistent Key Storage
-- ブラウザのローカルストレージ（localStorage）を活用したAPIキー永続保存
-- 2回目以降のコピペ不要・キー自動ロード＆削除機能
-- モデル動的自動検知・自己修復・近未来サイバーボットUI
+TRANSLY PRO | Self-Healing Architecture + Local Persistent Key Storage (Compact Sidebar Buttons)
 """
 
 import streamlit as st
@@ -108,6 +105,17 @@ st.markdown("""
         color: #00F2FE !important;
         letter-spacing: 0.08em;
         text-shadow: 0 0 12px rgba(0, 242, 254, 0.5);
+    }
+
+    /* サイドバー内ボタンの文字切れ防止＆コンパクト化 */
+    [data-testid="stSidebar"] div.stButton > button {
+        padding: 0.45rem 0.2rem !important;
+        font-size: 0.85rem !important;
+        font-weight: 800 !important;
+        letter-spacing: 0 !important;
+        white-space: nowrap !important;
+        border-radius: 8px !important;
+        margin-top: 4px !important;
     }
 
     .hero-container {
@@ -292,7 +300,8 @@ st.markdown("""
         margin-bottom: 20px;
     }
 
-    div.stButton > button:first-child {
+    /* メインエリアのアクションボタン */
+    .stMainBlockContainer div.stButton > button:first-child {
         font-family: 'Orbitron', 'Noto Sans JP', sans-serif;
         background: linear-gradient(135deg, #00F2FE 0%, #0072FF 100%);
         color: #050811;
@@ -307,7 +316,7 @@ st.markdown("""
         width: 100%;
         margin-top: 10px;
     }
-    div.stButton > button:first-child:hover {
+    .stMainBlockContainer div.stButton > button:first-child:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 35px rgba(0, 242, 254, 0.65);
         filter: brightness(1.08);
@@ -338,7 +347,7 @@ def discover_active_models(client):
     except Exception:
         return ["gemini-3.6-flash"]
 
-# サイドバー（キー永続化UI）
+# サイドバー（キー入力＆コンパクト保存・消去ボタン）
 with st.sidebar:
     st.markdown("### ⚡ FREE AI KEY")
     st.caption("🎁 **完全無料（0円）で利用可能**")
@@ -347,7 +356,6 @@ with st.sidebar:
     👉 [**無料APIキーを取得する**](https://aistudio.google.com/app/apikey)
     """)
     
-    # クライアント側（ブラウザ）ストレージとのやり取り用JS
     storage_sync_code = """
     <script>
     const saved = localStorage.getItem('transly_gemini_key');
@@ -371,9 +379,9 @@ with st.sidebar:
     
     col_k1, col_k2 = st.columns(2)
     with col_k1:
-        save_key_btn = st.button("💾 キーを記憶", use_container_width=True)
+        save_key_btn = st.button("💾 記憶", use_container_width=True)
     with col_k2:
-        clear_key_btn = st.button("🗑️ キー消去", use_container_width=True)
+        clear_key_btn = st.button("🗑️ 消去", use_container_width=True)
         
     if save_key_btn and gemini_key.strip():
         st.session_state.gemini_api_key = gemini_key.strip()
@@ -383,7 +391,7 @@ with st.sidebar:
         </script>
         """
         components.html(js_save, height=0)
-        st.success("ブラウザにキーを記憶しました！次回から自動入力されます。")
+        st.success("記憶完了！次回から自動ロードされます。")
         
     if clear_key_btn:
         st.session_state.gemini_api_key = ""
