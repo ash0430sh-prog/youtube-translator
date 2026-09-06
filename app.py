@@ -1,5 +1,5 @@
 """
-TRANSLY PRO | AI Video Localization System (Gemini AQ-Key Supported)
+TRANSLY PRO | AI Video Localization System (New Google GenAI SDK Supported)
 """
 
 import streamlit as st
@@ -323,7 +323,7 @@ with st.sidebar:
   st.markdown(
       """
     <div class="api-link-box">
-        💡 <strong>Google AI Studio</strong> のAPIキーを入力して実行します。<br>
+        💡 <strong>Google AI Studio</strong> の新しいAPIキーに対応しています。<br>
         <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#00F2FE; font-weight:bold; text-decoration:underline;">
             👉 Google AI Studio でキー管理
         </a>
@@ -466,9 +466,9 @@ with tab1:
           st.warning("⚠️ サイドバーでGemini APIキーを入力してください。")
         else:
           try:
-            import google.generativeai as genai
+            from google import genai
 
-            genai.configure(api_key=gemini_key)
+            client = genai.Client(api_key=gemini_key)
 
             with st.spinner(
                 "🤖 Gemini AIが動画ファイルと音声を解析・翻訳中..."
@@ -479,19 +479,22 @@ with tab1:
                 tmp_file.write(uploaded_video.getvalue())
                 tmp_path = tmp_file.name
 
-              video_file = genai.upload_file(tmp_path)
+              # 新しいSDKでのファイルアップロード
+              video_file = client.files.upload(file=tmp_path)
 
+              # 処理完了まで待機
               while video_file.state.name == "PROCESSING":
                 time.sleep(2)
-                video_file = genai.get_file(video_file.name)
+                video_file = client.files.get(name=video_file.name)
 
-              model = genai.GenerativeModel("gemini-2.5-flash")
               prompt = f"""
                             この動画（または音声）の音声を詳細に文字起こしし、自然な {m1_lang} に翻訳してください。
                             さらに、YouTubeやSNSの短尺・長尺動画で使えるように、タイムコード付きの字幕テキスト（SRT形式風）と、動画の要約・タイトル案も合わせて出力してください。
                             """
 
-              response = model.generate_content([video_file, prompt])
+              response = client.models.generate_content(
+                  model="gemini-2.5-flash", contents=[video_file, prompt]
+              )
 
               st.success("🎉 ローカライズ・翻訳処理が完了しました！")
               st.markdown("### 📝 翻訳・字幕出力結果")
@@ -521,15 +524,17 @@ with tab2:
       st.warning("⚠️ 翻訳するテキストを入力してください。")
     else:
       try:
-        import google.generativeai as genai
+        from google import genai
 
-        genai.configure(api_key=gemini_key)
-        model = genai.GenerativeModel("gemini-2.5-flash")
+        client = genai.Client(api_key=gemini_key)
 
         with st.spinner("🤖 Gemini AIが翻訳中..."):
-          response = model.generate_content(
-              f"以下のテキストを自然な {target_lang}"
-              f" に翻訳してください:\n\n{source_text}"
+          response = client.models.generate_content(
+              model="gemini-2.5-flash",
+              contents=(
+                  f"以下のテキストを自然な {target_lang}"
+                  f" に翻訳してください:\n\n{source_text}"
+              ),
           )
           st.success("翻訳完了！")
           st.markdown(f"**[{target_lang} 翻訳結果]**")
