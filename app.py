@@ -1,5 +1,5 @@
 """
-TRANSLY PRO | AI Video Localization System (Stable Model Supported)
+TRANSLY PRO | AI Video Localization System (Gemini 3.6 Flash Fixed)
 """
 
 import streamlit as st
@@ -490,9 +490,9 @@ with tab1:
                             さらに、YouTubeやSNSの短尺・長尺動画で使えるように、タイムコード付きの字幕テキスト（SRT形式風）と、動画の要約・タイトル案も合わせて出力してください。
                             """
 
-              # 安定版モデルを指定
+              # 最新の指定モデル名に修正
               response = client.models.generate_content(
-                  model="gemini-2.5-flash", contents=[video_file, prompt]
+                  model="gemini-3.6-flash", contents=[video_file, prompt]
               )
 
               st.success("🎉 ローカライズ・翻訳処理が完了しました！")
@@ -529,7 +529,7 @@ with tab2:
 
         with st.spinner("🤖 Gemini AIが翻訳中..."):
           response = client.models.generate_content(
-              model="gemini-2.5-flash",
+              model="gemini-3.6-flash",
               contents=(
                   f"以下のテキストを自然な {target_lang}"
                   f" に翻訳してください:\n\n{source_text}"
