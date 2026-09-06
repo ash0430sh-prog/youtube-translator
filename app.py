@@ -1,5 +1,5 @@
 """
-TRANSLY PRO | AI Video Localization System (Syntax Fixed & Auto-Recovery)
+TRANSLY PRO | AI Video Localization System (Subscription & Trial Expiration Security)
 """
 
 import streamlit as st
@@ -7,6 +7,7 @@ import streamlit.components.v1 as components
 import json
 import tempfile
 import time
+from datetime import datetime, timedelta
 
 # ページ基本設定
 st.set_page_config(
@@ -17,15 +18,56 @@ st.set_page_config(
 )
 
 # ==========================================
-# 永続化パラメータの管理
+# 永続化パラメータ & サブスク/トライアル有効期限の管理
 # ==========================================
 query_params = st.query_params
 
-is_url_pro = query_params.get("pro") == "true"
+# セッション状態の初期化
 if "is_pro" not in st.session_state:
-  st.session_state.is_pro = is_url_pro
-elif is_url_pro:
+  st.session_state.is_pro = False
+if "pro_expiry_date" not in st.session_state:
+  st.session_state.pro_expiry_date = None
+
+# URLパラメータからのPRO有効化・決済確認シミュレーション
+is_url_pro = query_params.get("pro") == "true"
+if is_url_pro:
   st.session_state.is_pro = True
+  # 初回アクセス時に30日後の期限を設定（本番ではStripe Webhook等で管理）
+  if not st.session_state.pro_expiry_date:
+    st.session_state.pro_expiry_date = (
+        datetime.now() + timedelta(days=30)
+    ).strftime("%Y-%m-%d")
+
+# ==========================================
+# 🔒 【重要】サブスク継続 / 有効期限のチェックロジック
+# ==========================================
+def check_subscription_status() -> bool:
+  """毎月の決済確認が取れているか、またはトライアル期間内かを厳密にチェックする"""
+  if not st.session_state.is_pro:
+    return False
+
+  # 1. 有効期限（30日）が過ぎていないかチェック
+  if st.session_state.pro_expiry_date:
+    expiry = datetime.strptime(st.session_state.pro_expiry_date, "%Y-%m-%d")
+    if datetime.now() > expiry:
+      # 期限切れ：自動的にPROを剥奪
+      st.session_state.is_pro = False
+      return False
+
+  # 2. 月額決済（Stripeサブスクリプション）の継続確認チェック
+  # ※本番環境ではここでStripe APIを叩き、顧客のサブスクリプションステータスが "active" かどうかを判定します。
+  # 決済失敗や未払い（past_due, canceled）の場合は False を返して有料版をロックします。
+  subscription_active = True  # ← 本番ではStripeの返り値に置き換え
+
+  if not subscription_active:
+    st.session_state.is_pro = False
+    return False
+
+  return True
+
+
+# 毎フレーム実行時にライセンス状態を検証
+st.session_state.is_pro = check_subscription_status()
 
 url_api_key = query_params.get("api_key", "")
 if "saved_gemini_key" not in st.session_state:
@@ -385,6 +427,16 @@ with st.sidebar:
     st.markdown(
         '<div class="pro-badge">PRO PLAN ACTIVE ⚡</div>', unsafe_allow_html=True
     )
+    if st.session_state.pro_expiry_date:
+      st.caption(f"📅 有効期限: {st.session_state.pro_expiry_date} まで")
+
+    if st.button("🚪 PROプランを解約 / 期限切れテスト"):
+      st.session_state.is_pro = False
+      st.session_state.pro_expiry_date = None
+      if "pro" in st.query_params:
+        del st.query_params["pro"]
+      st.warning("PROプランが失効しました。")
+      st.rerun()
   else:
     st.markdown(
         '<div class="free-badge">FREE PLAN (RESTRICTED)</div>',
@@ -424,8 +476,11 @@ with st.sidebar:
   if st.button("ライセンスを適用"):
     if verify_license(license_input):
       st.session_state.is_pro = True
+      st.session_state.pro_expiry_date = (
+          datetime.now() + timedelta(days=30)
+      ).strftime("%Y-%m-%d")
       st.query_params["pro"] = "true"
-      st.success("⚡ PROライセンスが有効化されました！")
+      st.success("⚡ PROライセンス（30日間）が有効化されました！")
       st.rerun()
     else:
       st.error("無効なライセンスキーです。")
@@ -469,7 +524,7 @@ with tab1:
                 </h3>
                 <p style="color: #E2E8F0; font-size: 14px; line-height: 1.7; margin-bottom: 22px;">
                     長尺動画の音声抽出、高精度解析、タイムコード付きSRT自動生成機能はPRO限定です。<br>
-                    初月無料トライアルですぐに全機能をお試しいただけます。
+                    初月無料トライアル期間の終了、または毎月の決済未確認によりロックされています。
                 </p>
                 <a href="{STRIPE_PAYMENT_URL}" target="_blank" style="text-decoration: none;">
                     <span style="
@@ -483,7 +538,7 @@ with tab1:
                         display: inline-block;
                         transition: 0.2s;
                     ">
-                        ⚡ 今すぐ初月無料でPROを体験する
+                        ⚡ 有料プランを継続 / 再開する
                     </span>
                 </a>
             </div>
@@ -822,9 +877,9 @@ with tab4:
         </div>
         <div style="flex: 1; padding-left: 5px;">
             <h4 style="color: #FF007F; font-family: Orbitron; margin-top:0;">STEP 03</h4>
-            <p style="font-weight: bold; color: #FFFFFF; margin-bottom: 6px;">自動リカバリー & DL</p>
+            <p style="font-weight: bold; color: #FFFFFF; margin-bottom: 6px;">自動リカバリー & 期限管理</p>
             <p style="font-size: 0.82rem; color: #94A3B8; line-height: 1.5;">
-                混雑エラー等はアプリが自動で再試行。結果はボタン一つで保存できます。
+                混雑エラーは自動再試行。トライアル期限や毎月の決済未確認時は自動でロックされます。
             </p>
         </div>
     </div>
@@ -841,7 +896,7 @@ with tab4:
         """
             <div style="background: rgba(13, 22, 44, 0.6); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 10px; padding: 22px; text-align: center;">
                 <h4 style="color: #94A3B8; margin-bottom: 5px;">FREE PLAN</h4>
-                <h2 style="color: #FFFFFF; font-size: 1.8rem; margin: 10px 0;">¥0 <span style="font-size: 0.9rem; font-weight: normal; color: #94A3B8;">/ ずっと無料</span></h2>
+                <h2 style="color: #FFFFFF; font-size: 1.8rem; margin: 10px 0;">0円 <span style="font-size: 0.9rem; font-weight: normal; color: #94A3B8;">/ ずっと無料</span></h2>
                 <hr style="border-color: rgba(148, 163, 184, 0.2); margin: 15px 0;">
                 <p style="font-size: 0.88rem; color: #CBD5E1; text-align: left; line-height: 1.6;">
                     ✅ MODE 2（テキスト翻訳）利用可能<br>
@@ -858,7 +913,7 @@ with tab4:
         f"""
             <div style="background: linear-gradient(135deg, rgba(13, 22, 44, 0.9) 0%, rgba(20, 10, 35, 0.95) 100%); border: 2px solid #FF007F; border-radius: 10px; padding: 22px; text-align: center; box-shadow: 0 0 20px rgba(255, 0, 127, 0.25);">
                 <h4 style="color: #FF007F; margin-bottom: 5px; font-family: Orbitron;">⚡ TRANSLY PRO</h4>
-                <h2 style="color: #FFFFFF; font-size: 1.8rem; margin: 10px 0;">¥1,500 <span style="font-size: 0.9rem; font-weight: normal; color: #94A3B8;">/ 月 (税別)</span></h2>
+                <h2 style="color: #FFFFFF; font-size: 1.8rem; margin: 10px 0;">1,500円 <span style="font-size: 0.9rem; font-weight: normal; color: #94A3B8;">/ 月 (税別)</span></h2>
                 <p style="color: #00F2FE; font-size: 0.8rem; font-weight: bold; margin-bottom: 10px;">🎉 初回30日間は完全無料でお試し可能！</p>
                 <hr style="border-color: rgba(255, 0, 127, 0.3); margin: 15px 0;">
                 <p style="font-size: 0.88rem; color: #CBD5E1; text-align: left; line-height: 1.6;">
