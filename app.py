@@ -11,22 +11,35 @@ TRANSLY PRO | AI Video Localization System
 import streamlit as st
 import streamlit.components.v1 as components
 import json
+import tempfile
+import time
 
 # ページ基本設定
 st.set_page_config(
     page_title="TRANSLY PRO // AI Video Localization",
     page_icon="⚡",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
+
+# ==========================================
+# URLパラメータによる自動PRO化の判定
+# ==========================================
+query_params = st.query_params
+is_url_unlocked = query_params.get("pro_unlocked") == "true"
 
 # セッション状態の初期化
 if "is_pro" not in st.session_state:
-    st.session_state.is_pro = False
+  st.session_state.is_pro = False
+
+# URLパラメータからアクセスされた場合は自動でPROを有効化して保持
+if is_url_unlocked:
+  st.session_state.is_pro = True
+
 if "m2_result" not in st.session_state:
-    st.session_state.m2_result = None
+  st.session_state.m2_result = None
 if "saved_gemini_key" not in st.session_state:
-    st.session_state.saved_gemini_key = ""
+  st.session_state.saved_gemini_key = ""
 
 # ==========================================
 # STRIPE 決済リンク設定
@@ -34,7 +47,8 @@ if "saved_gemini_key" not in st.session_state:
 STRIPE_PAYMENT_URL = "https://buy.stripe.com/aFacN72GA4KiaIb9T46sw00"
 
 # 共通CSSスタイル
-st.markdown("""
+st.markdown(
+    """
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;600;800&display=swap');
     
@@ -160,11 +174,14 @@ st.markdown("""
         line-height: 1.5;
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
+
 
 # 3D AI Robot コンポーネント
 def render_cyber_robot(height=260):
-    robot_html = f"""
+  robot_html = f"""
     <!DOCTYPE html>
     <html>
     <head>
@@ -253,61 +270,86 @@ def render_cyber_robot(height=260):
     </body>
     </html>
     """
-    components.html(robot_html, height=height)
+  components.html(robot_html, height=height)
+
 
 def verify_license(key_str: str) -> bool:
-    if not key_str:
-        return False
-    clean_key = key_str.strip().upper()
-    return clean_key.startswith("PRO-") or clean_key in ["VIP2026", "TRIAL2026"]
+  if not key_str:
+    return False
+  clean_key = key_str.strip().upper()
+  return clean_key.startswith("PRO-") or clean_key in ["VIP2026", "TRIAL2026"]
+
 
 # ==========================================
 # サイドバー構築
 # ==========================================
 with st.sidebar:
-    st.markdown("<h2 style='color:#00F2FE; font-family:Orbitron; letter-spacing:1px;'>TRANSLY PRO</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='color:#94A3B8; font-size:0.85rem; margin-top:-10px;'>v2.5 // Cyber AI Localization Engine</p>", unsafe_allow_html=True)
-    st.markdown("---")
+  st.markdown(
+      "<h2"
+      " style='color:#00F2FE; font-family:Orbitron;"
+      " letter-spacing:1px;'>TRANSLY PRO</h2>",
+      unsafe_allow_html=True,
+  )
+  st.markdown(
+      "<p style='color:#94A3B8; font-size:0.85rem; margin-top:-10px;'>v2.5 //"
+      " Cyber AI Localization Engine</p>",
+      unsafe_allow_html=True,
+  )
+  st.markdown("---")
 
-    st.markdown("#### 🔑 Gemini API 設定")
-    temp_key = st.text_input("Gemini API Key", value=st.session_state.saved_gemini_key, type="password", placeholder="AIzaSy...", help="Google AI StudioのAPIキーを入力してください")
-    
-    col_api1, col_api2 = st.columns(2)
-    with col_api1:
-        if st.button("💾 キーを保存"):
-            st.session_state.saved_gemini_key = temp_key
-            st.success("APIキーを保存しました！")
-            st.rerun()
-    with col_api2:
-        if st.button("🗑️ キーを削除"):
-            st.session_state.saved_gemini_key = ""
-            st.success("APIキーを削除しました。")
-            st.rerun()
+  st.markdown("#### 🔑 Gemini API 設定")
+  temp_key = st.text_input(
+      "Gemini API Key",
+      value=st.session_state.saved_gemini_key,
+      type="password",
+      placeholder="AIzaSy...",
+      help="Google AI StudioのAPIキーを入力してください",
+  )
 
-    gemini_key = st.session_state.saved_gemini_key
+  col_api1, col_api2 = st.columns(2)
+  with col_api1:
+    if st.button("💾 キーを保存"):
+      st.session_state.saved_gemini_key = temp_key
+      st.success("APIキーを保存しました！")
+      st.rerun()
+  with col_api2:
+    if st.button("🗑️ キーを削除"):
+      st.session_state.saved_gemini_key = ""
+      st.success("APIキーを削除しました。")
+      st.rerun()
 
-    if gemini_key:
-        st.success("🟢 APIキー設定済み")
+  gemini_key = st.session_state.saved_gemini_key
 
-    st.markdown("""
+  if gemini_key:
+    st.success("🟢 APIキー設定済み")
+
+  st.markdown(
+      """
     <div class="api-link-box">
         💡 <strong>Gemini APIはクレカ不要・完全無料</strong>で誰でも即座に取得可能です。<br>
         <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#00F2FE; font-weight:bold; text-decoration:underline;">
             👉 Google AI Studio で無料APIキーを発行
         </a>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+      unsafe_allow_html=True,
+  )
 
-    st.markdown("---")
-    st.markdown("#### ⚡ PRO LICENSE")
+  st.markdown("---")
+  st.markdown("#### ⚡ PRO LICENSE")
 
-    if st.session_state.is_pro:
-        st.markdown('<div class="pro-badge">PRO PLAN ACTIVE ⚡</div>', unsafe_allow_html=True)
-    else:
-        st.markdown('<div class="free-badge">FREE PLAN (RESTRICTED)</div>', unsafe_allow_html=True)
-        
-        st.markdown(
-            f"""
+  if st.session_state.is_pro:
+    st.markdown(
+        '<div class="pro-badge">PRO PLAN ACTIVE ⚡</div>', unsafe_allow_html=True
+    )
+  else:
+    st.markdown(
+        '<div class="free-badge">FREE PLAN (RESTRICTED)</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        f"""
             <a href="{STRIPE_PAYMENT_URL}" target="_blank" style="text-decoration: none;">
                 <div style="
                     background: linear-gradient(135deg, #00F2FE 0%, #4FACFE 100%);
@@ -325,24 +367,31 @@ with st.sidebar:
                 </div>
             </a>
             """,
-            unsafe_allow_html=True
-        )
-        st.markdown("<p style='color:#94A3B8; font-size:0.78rem; text-align:center;'>※ 初回30日間¥0で全機能使い放題</p>", unsafe_allow_html=True)
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<p style='color:#94A3B8; font-size:0.78rem; text-align:center;'>※"
+        " 初回30日間¥0で全機能使い放題</p>",
+        unsafe_allow_html=True,
+    )
 
-    license_input = st.text_input("ライセンスキー認証", placeholder="PRO-XXXX-XXXX")
-    if st.button("ライセンスを適用"):
-        if verify_license(license_input):
-            st.session_state.is_pro = True
-            st.success("⚡ PROライセンスが有効化されました！")
-            st.rerun()
-        else:
-            st.error("無効なライセンスキーです。")
+  license_input = st.text_input(
+      "ライセンスキー認証", placeholder="PRO-XXXX-XXXX"
+  )
+  if st.button("ライセンスを適用"):
+    if verify_license(license_input):
+      st.session_state.is_pro = True
+      st.success("⚡ PROライセンスが有効化されました！")
+      st.rerun()
+    else:
+      st.error("無効なライセンスキーです。")
 
 # ==========================================
 # メイン画面（中央集約レイアウト）
 # ==========================================
 
-st.markdown("""
+st.markdown(
+    """
     <div style="text-align: center; margin-top: 5px; margin-bottom: 5px;">
         <h1 style="color:#FFFFFF; font-family:'Orbitron', sans-serif; font-size: 2.6rem; letter-spacing: 2px; margin-bottom: 4px;">
             TRANSLY <span style="color:#00F2FE; text-shadow: 0 0 15px rgba(0, 242, 254, 0.6);">PRO</span>
@@ -351,23 +400,25 @@ st.markdown("""
             次世代AIによる超高速・高精度動画ローカライゼーションシステム
         </p>
     </div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 render_cyber_robot(height=240)
 
 # 機能タブ
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🚀 MODE 1: フル動画・音声翻訳（PRO）", 
+    "🚀 MODE 1: フル動画・音声翻訳（PRO）",
     "⚡ MODE 2: クイック字幕・テキスト翻訳",
     "🌐 MODE 3: YouTube URL 直接ローカライズ",
-    "📖 使い方ガイド ＆ 料金プラン"
+    "📖 使い方ガイド ＆ 料金プラン",
 ])
 
 # MODE 1
 with tab1:
-    if not st.session_state.is_pro:
-        st.markdown(
-            f"""
+  if not st.session_state.is_pro:
+    st.markdown(
+        f"""
             <div class="cyber-lock-box" style="max-width: 800px; margin: 20px auto;">
                 <h3 style="color: #FF007F; margin-bottom: 10px; font-family: 'Orbitron', sans-serif; letter-spacing: 1px;">
                     🔒 MODE 1: PRO FEATURE LOCKED
@@ -393,56 +444,121 @@ with tab1:
                 </a>
             </div>
             """,
-            unsafe_allow_html=True
-        )
-    else:
-        st.success("⚡ PRO機能が有効化されています。動画または音声をアップロードしてください。")
-        uploaded_video = st.file_uploader("動画・音声ファイルを選択 (MP4, MP3, WAV)", type=["mp4", "mp3", "wav"])
-        if uploaded_video:
-            st.info(f"📁 読み込み完了: {uploaded_video.name}")
-            st.button("AI一括翻訳・ローカライズを実行", type="primary")
+        unsafe_allow_html=True,
+    )
+  else:
+    st.success(
+        "⚡ PRO機能が有効化されています。動画または音声をアップロードしてください。"
+    )
+    uploaded_video = st.file_uploader(
+        "動画・音声ファイルを選択 (MP4, MP3, WAV)", type=["mp4", "mp3", "wav"]
+    )
+
+    if uploaded_video:
+      st.info(f"📁 読み込み完了: {uploaded_video.name}")
+
+      m1_lang = st.selectbox(
+          "翻訳・ローカライズ出力言語",
+          ["日本語", "英語 (US)", "簡体字中国語", "韓国語"],
+          key="m1_lang",
+      )
+
+      if st.button("AI一括翻訳・ローカライズを実行", type="primary"):
+        if not gemini_key:
+          st.warning(
+              "⚠️ サイドバーでGemini APIキーを入力してください。"
+          )
+        else:
+          try:
+            import google.generativeai as genai
+
+            genai.configure(api_key=gemini_key)
+
+            with st.spinner(
+                "🤖 Gemini AIが動画ファイルと音声を解析・翻訳中..."
+            ):
+              with tempfile.NamedTemporaryFile(
+                  delete=False, suffix="." + uploaded_video.name.split(".")[-1]
+              ) as tmp_file:
+                tmp_file.write(uploaded_video.getvalue())
+                tmp_path = tmp_file.name
+
+              video_file = genai.upload_file(tmp_path)
+
+              while video_file.state.name == "PROCESSING":
+                time.sleep(2)
+                video_file = genai.get_file(video_file.name)
+
+              model = genai.GenerativeModel("gemini-2.5-flash")
+              prompt = f"""
+                            この動画（または音声）の音声を詳細に文字起こしし、自然な {m1_lang} に翻訳してください。
+                            さらに、YouTubeやSNSの短尺・長尺動画で使えるように、タイムコード付きの字幕テキスト（SRT形式風）と、動画の要約・タイトル案も合わせて出力してください。
+                            """
+
+              response = model.generate_content([video_file, prompt])
+
+              st.success("🎉 ローカライズ・翻訳処理が完了しました！")
+              st.markdown("### 📝 翻訳・字幕出力結果")
+              st.markdown(response.text)
+
+          except Exception as e:
+            st.error(f"エラーが発生しました: {e}")
 
 # MODE 2
 with tab2:
-    st.markdown("#### テキスト・字幕ローカライズ")
-    source_text = st.text_area("翻訳元のテキストまたは字幕文", height=140, placeholder="ここにスクリプトや字幕を入力...")
-    target_lang = st.selectbox("出力ターゲット言語", ["日本語", "英語 (US)", "簡体字中国語", "韓国語", "スペイン語"], key="m2_lang")
-    
-    if st.button("⚡ 高速AI翻訳を実行", key="m2_btn"):
-        if not gemini_key:
-            st.warning("⚠️ サイドバーでGemini APIキーを入力してください。")
-        elif not source_text:
-            st.warning("⚠️ 翻訳するテキストを入力してください。")
-        else:
-            st.success("翻訳完了！")
-            st.markdown(f"**[{target_lang} 翻訳結果]**")
-            st.info(f"Translated: {source_text}")
+  st.markdown("#### テキスト・字幕ローカライズ")
+  source_text = st.text_area(
+      "翻訳元のテキストまたは字幕文",
+      height=140,
+      placeholder="ここにスクリプトや字幕を入力...",
+  )
+  target_lang = st.selectbox(
+      "出力ターゲット言語",
+      ["日本語", "英語 (US)", "簡体字中国語", "韓国語", "スペイン語"],
+      key="m2_lang",
+  )
+
+  if st.button("⚡ 高速AI翻訳を実行", key="m2_btn"):
+    if not gemini_key:
+      st.warning("⚠️ サイドバーでGemini APIキーを入力してください。")
+    elif not source_text:
+      st.warning("⚠️ 翻訳するテキストを入力してください。")
+    else:
+      st.success("翻訳完了！")
+      st.markdown(f"**[{target_lang} 翻訳結果]**")
+      st.info(f"Translated: {source_text}")
 
 # MODE 3
 with tab3:
-    st.markdown("#### 🌐 YouTube 動画URLから直接抽出・翻訳")
-    youtube_url = st.text_input("YouTube動画URLを入力", placeholder="https://www.youtube.com/watch?v=...")
-    m3_lang = st.selectbox("翻訳先言語", ["日本語", "英語", "中国語", "韓国語"], key="m3_lang")
-    
-    col_btn1, col_btn2 = st.columns(2)
-    with col_btn1:
-        fetch_srt = st.button("📄 字幕(SRT)データを抽出")
-    with col_btn2:
-        translate_yt = st.button("🚀 翻訳・タイトル案を自動生成")
+  st.markdown("#### 🌐 YouTube 動画URLから直接抽出・翻訳")
+  youtube_url = st.text_input(
+      "YouTube動画URLを入力",
+      placeholder="https://www.youtube.com/watch?v=...",
+  )
+  m3_lang = st.selectbox(
+      "翻訳先言語", ["日本語", "英語", "中国語", "韓国語"], key="m3_lang"
+  )
 
-    if youtube_url:
-        st.caption(f"ターゲット動画: {youtube_url}")
-        if fetch_srt or translate_yt:
-            if not gemini_key:
-                st.warning("⚠️ サイドバーでGemini APIキーを入力してください。")
-            else:
-                st.info("YouTube動画のメタデータおよび字幕ストリームを解析中...")
+  col_btn1, col_btn2 = st.columns(2)
+  with col_btn1:
+    fetch_srt = st.button("📄 字幕(SRT)データを抽出")
+  with col_btn2:
+    translate_yt = st.button("🚀 翻訳・タイトル案を自動生成")
+
+  if youtube_url:
+    st.caption(f"ターゲット動画: {youtube_url}")
+    if fetch_srt or translate_yt:
+      if not gemini_key:
+        st.warning("⚠️ サイドバーでGemini APIキーを入力してください。")
+      else:
+        st.info("YouTube動画のメタデータおよび字幕ストリームを解析中...")
 
 # 📖 使い方ガイド ＆ 料金プラン（HTMLスライドカード形式）
 with tab4:
-    st.markdown("### 📖 TRANSLY PRO ご利用ガイド & 料金プラン")
-    
-    st.markdown("""
+  st.markdown("### 📖 TRANSLY PRO ご利用ガイド & 料金プラン")
+
+  st.markdown(
+      """
     <div style="
         display: flex; 
         gap: 15px; 
@@ -475,14 +591,17 @@ with tab4:
             </p>
         </div>
     </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    price_col1, price_col2 = st.columns(2)
-    
-    with price_col1:
-        st.markdown("""
+    """,
+      unsafe_allow_html=True,
+  )
+
+  st.markdown("---")
+
+  price_col1, price_col2 = st.columns(2)
+
+  with price_col1:
+    st.markdown(
+        """
             <div style="background: rgba(13, 22, 44, 0.6); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 10px; padding: 22px; text-align: center;">
                 <h4 style="color: #94A3B8; margin-bottom: 5px;">FREE PLAN</h4>
                 <h2 style="color: #FFFFFF; font-size: 1.8rem; margin: 10px 0;">¥0 <span style="font-size: 0.9rem; font-weight: normal; color: #94A3B8;">/ ずっと無料</span></h2>
@@ -493,11 +612,13 @@ with tab4:
                     ❌ フル動画・音声抽出（MODE 1）はロック
                 </p>
             </div>
-        """, unsafe_allow_html=True)
-        
-    with price_col2:
-        st.markdown(
-            f"""
+        """,
+        unsafe_allow_html=True,
+    )
+
+  with price_col2:
+    st.markdown(
+        f"""
             <div style="background: linear-gradient(135deg, rgba(13, 22, 44, 0.9) 0%, rgba(20, 10, 35, 0.95) 100%); border: 2px solid #FF007F; border-radius: 10px; padding: 22px; text-align: center; box-shadow: 0 0 20px rgba(255, 0, 127, 0.25);">
                 <h4 style="color: #FF007F; margin-bottom: 5px; font-family: Orbitron;">⚡ TRANSLY PRO</h4>
                 <h2 style="color: #FFFFFF; font-size: 1.8rem; margin: 10px 0;">¥1,500 <span style="font-size: 0.9rem; font-weight: normal; color: #94A3B8;">/ 月 (税別)</span></h2>
@@ -524,5 +645,5 @@ with tab4:
                 </a>
             </div>
             """,
-            unsafe_allow_html=True
-        )
+        unsafe_allow_html=True,
+    )
