@@ -1,5 +1,5 @@
 """
-TRANSLY PRO | AI Video Localization System (Gemini 3.6 Flash Fixed)
+TRANSLY PRO | AI Video Localization System (Custom Output Options Added)
 """
 
 import streamlit as st
@@ -455,11 +455,30 @@ with tab1:
     if uploaded_video:
       st.info(f"📁 読み込み完了: {uploaded_video.name}")
 
-      m1_lang = st.selectbox(
-          "翻訳・ローカライズ出力言語",
-          ["日本語", "英語 (US)", "簡体字中国語", "韓国語"],
-          key="m1_lang",
-      )
+      # 設定オプション列
+      col_opt1, col_opt2 = st.columns(2)
+      with col_opt1:
+        m1_lang = st.selectbox(
+            "翻訳・ローカライズ出力言語",
+            ["日本語", "英語 (US)", "簡体字中国語", "韓国語"],
+            key="m1_lang",
+        )
+        output_format = st.radio(
+            "出力形式の選択",
+            [
+                "通常のテキスト版（文字起こし＋翻訳）",
+                "タイムコード付き字幕テキスト（SRT形式風）",
+            ],
+            key="m1_format",
+        )
+
+      with col_opt2:
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        include_summary = st.checkbox(
+            "動画の要約とSNS用タイトル案を合わせて出力する",
+            value=True,
+            key="m1_summary",
+        )
 
       if st.button("AI一括翻訳・ローカライズを実行", type="primary"):
         if not gemini_key:
@@ -485,12 +504,29 @@ with tab1:
                 time.sleep(2)
                 video_file = client.files.get(name=video_file.name)
 
+              # プロンプトの条件分岐構築
+              format_instruction = (
+                  "タイムコード付きの字幕テキスト（SRT形式風、例: [00:00 - 00:05] セリフ...）として出力してください。"
+                  if "SRT" in output_format
+                  else "読みやすい通常のテキスト形式（話者ごとの文字起こしと自然な翻訳）で出力してください。"
+              )
+
+              summary_instruction = (
+                  "さらに、動画の要約とSNS用タイトル案も合わせて出力してください。"
+                  if include_summary
+                  else "※要約およびタイトル案の出力は不要です。"
+              )
+
               prompt = f"""
                             この動画（または音声）の音声を詳細に文字起こしし、自然な {m1_lang} に翻訳してください。
-                            さらに、YouTubeやSNSの短尺・長尺動画で使えるように、タイムコード付きの字幕テキスト（SRT形式風）と、動画の要約・タイトル案も合わせて出力してください。
+                            
+                            【出力形式の指定】
+                            {format_instruction}
+                            
+                            【追加情報の指定】
+                            {summary_instruction}
                             """
 
-              # 最新の指定モデル名に修正
               response = client.models.generate_content(
                   model="gemini-3.6-flash", contents=[video_file, prompt]
               )
