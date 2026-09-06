@@ -1,5 +1,5 @@
 """
-TRANSLY PRO | AI Video Localization System (Clean Sidebar & UI Updated)
+TRANSLY PRO | AI Video Localization System (Secure Subscription & Clean Placeholder)
 """
 
 import streamlit as st
@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# 永続化パラメータの管理
+# 永続化パラメータ & サブスク/トライアル有効期限の管理
 # ==========================================
 query_params = st.query_params
 
@@ -27,6 +27,7 @@ if "is_pro" not in st.session_state:
 if "pro_expiry_date" not in st.session_state:
   st.session_state.pro_expiry_date = None
 
+# 正規の決済完了ルート（Stripe等からのリダイレクト ?pro=true）でのみPRO有効化
 is_url_pro = query_params.get("pro") == "true"
 if is_url_pro:
   st.session_state.is_pro = True
@@ -36,18 +37,20 @@ if is_url_pro:
     ).strftime("%Y-%m-%d")
 
 # ==========================================
-# サブスク継続 / 有効期限のチェックロジック
+# 🔒 サブスク継続 / 有効期限のチェックロジック
 # ==========================================
 def check_subscription_status() -> bool:
   if not st.session_state.is_pro:
     return False
 
+  # 有効期限（30日）チェック
   if st.session_state.pro_expiry_date:
     expiry = datetime.strptime(st.session_state.pro_expiry_date, "%Y-%m-%d")
     if datetime.now() > expiry:
       st.session_state.is_pro = False
       return False
 
+  # 毎月の決済継続チェック（本番ではStripe APIと連動）
   subscription_active = True
   if not subscription_active:
     st.session_state.is_pro = False
@@ -317,13 +320,6 @@ def render_cyber_robot(height=260):
   components.html(robot_html, height=height)
 
 
-def verify_license(key_str: str) -> bool:
-  if not key_str:
-    return False
-  clean_key = key_str.strip().upper()
-  return clean_key.startswith("PRO-") or clean_key in ["VIP2026", "TRIAL2026"]
-
-
 # ==========================================
 # 自動リカバリー関数
 # ==========================================
@@ -417,7 +413,6 @@ with st.sidebar:
         '<div class="pro-badge">PRO PLAN ACTIVE ⚡</div>', unsafe_allow_html=True
     )
     if st.session_state.pro_expiry_date:
-      # 有効期限の文字色を明るく見やすくハイライト
       st.markdown(
           f"<p"
           f" style='color:#00F2FE; font-size:0.85rem; text-align:center;"
@@ -457,23 +452,6 @@ with st.sidebar:
         " 初回30日間¥0で全機能使い放題</p>",
         unsafe_allow_html=True,
     )
-
-  license_input = st.text_input(
-      "ライセンスキー認証",
-      value="",
-      placeholder="VIP2026 または PRO-...",
-  )
-  if st.button("ライセンスを適用"):
-    if verify_license(license_input):
-      st.session_state.is_pro = True
-      st.session_state.pro_expiry_date = (
-          datetime.now() + timedelta(days=30)
-      ).strftime("%Y-%m-%d")
-      st.query_params["pro"] = "true"
-      st.success("⚡ PROライセンス（30日間）が有効化されました！")
-      st.rerun()
-    else:
-      st.error("無効なライセンスキーです。")
 
 # ==========================================
 # メイン画面
@@ -867,9 +845,9 @@ with tab4:
         </div>
         <div style="flex: 1; padding-left: 5px;">
             <h4 style="color: #FF007F; font-family: Orbitron; margin-top:0;">STEP 03</h4>
-            <p style="font-weight: bold; color: #FFFFFF; margin-bottom: 6px;">自動リカバリー & 期限管理</p>
+            <p style="font-weight: bold; color: #FFFFFF; margin-bottom: 6px;">自動リカバリー & 決済連動</p>
             <p style="font-size: 0.82rem; color: #94A3B8; line-height: 1.5;">
-                混雑エラーは自動再試行。トライアル期限や毎月の決済未確認時は自動でロックされます。
+                混雑エラーは自動再試行。正規の決済完了者のみがPRO機能を利用できます。
             </p>
         </div>
     </div>
