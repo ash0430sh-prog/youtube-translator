@@ -1,5 +1,5 @@
 """
-TRANSLY PRO | AI Video Localization System (Auto-Recovery & Smart Retry Enabled)
+TRANSLY PRO | AI Video Localization System (Syntax Fixed & Auto-Recovery)
 """
 
 import streamlit as st
@@ -294,14 +294,13 @@ def verify_license(key_str: str) -> bool:
 
 
 # ==========================================
-# 自動リカバリー（スマートリトライ & フォールバック）関数
+# 自動リカバリー関数
 # ==========================================
 def call_gemini_with_auto_retry(client, contents_data):
-  """503エラーや混雑時に自動でモデルを切り替えながら最大3回まで再試行する関数"""
   models_to_try = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
 
   for model_name in models_to_try:
-    for attempt in range(2):  -  # 各モデルで2回まで試す
+    for attempt in range(2):
       try:
         response = client.models.generate_content(
             model=model_name, contents=contents_data
@@ -310,13 +309,11 @@ def call_gemini_with_auto_retry(client, contents_data):
       except Exception as e:
         err_str = str(e)
         if "503" in err_str or "UNAVAILABLE" in err_str or "high demand" in err_str:
-          time.sleep(2)  # 2秒待ってリトライ
+          time.sleep(2)
           continue
         elif "404" in err_str or "NOT_FOUND" in err_str:
-          # モデルが見つからない場合は次のモデルにフォールバック
           break
         else:
-          # その他のエラーはそのまま投げる
           raise e
   raise Exception(
       "サーバーが非常に混雑しています。少し時間を置いてから再度実行してください。"
@@ -587,7 +584,6 @@ with tab1:
                             {summary_instruction}
                             """
 
-              # 自動リトライ関数を通す
               response = call_gemini_with_auto_retry(
                   client, [video_file, prompt]
               )
