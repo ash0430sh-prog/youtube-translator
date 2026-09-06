@@ -1,11 +1,5 @@
 """
-TRANSLY PRO | AI Video Localization System
-- Cyberpunk 3D Core Interface (Optimized Orbit Fitting - Center Layout)
-- Cyberpunk Full Dark Theme (Unified Sidebar & Header Styling)
-- 3D Core Interface
-- Freemium License Protection (Stripe + Supabase Integration)
-- Direct Free API Key Guidance & Japanese Localization Targets Included
-- 3-Mode Architecture & HTML-based Cyberspace Slide Guide
+TRANSLY PRO | AI Video Localization System (Gemini AQ-Key Supported)
 """
 
 import streamlit as st
@@ -23,23 +17,24 @@ st.set_page_config(
 )
 
 # ==========================================
-# URLパラメータによる自動PRO化の判定
+# 永続化パラメータの管理 (URLクエリパラメータを利用)
 # ==========================================
 query_params = st.query_params
-is_url_unlocked = query_params.get("pro_unlocked") == "true"
 
-# セッション状態の初期化
+is_url_pro = query_params.get("pro") == "true"
 if "is_pro" not in st.session_state:
-  st.session_state.is_pro = False
-
-# URLパラメータからアクセスされた場合は自動でPROを有効化して保持
-if is_url_unlocked:
+  st.session_state.is_pro = is_url_pro
+elif is_url_pro:
   st.session_state.is_pro = True
+
+url_api_key = query_params.get("api_key", "")
+if "saved_gemini_key" not in st.session_state:
+  st.session_state.saved_gemini_key = url_api_key
+elif url_api_key and not st.session_state.saved_gemini_key:
+  st.session_state.saved_gemini_key = url_api_key
 
 if "m2_result" not in st.session_state:
   st.session_state.m2_result = None
-if "saved_gemini_key" not in st.session_state:
-  st.session_state.saved_gemini_key = ""
 
 # ==========================================
 # STRIPE 決済リンク設定
@@ -179,7 +174,6 @@ st.markdown(
 )
 
 
-# 3D AI Robot コンポーネント
 def render_cyber_robot(height=260):
   robot_html = f"""
     <!DOCTYPE html>
@@ -299,22 +293,25 @@ with st.sidebar:
 
   st.markdown("#### 🔑 Gemini API 設定")
   temp_key = st.text_input(
-      "Gemini API Key",
+      "Gemini API Key (AQ...)",
       value=st.session_state.saved_gemini_key,
       type="password",
-      placeholder="AIzaSy...",
-      help="Google AI StudioのAPIキーを入力してください",
+      placeholder="AQ...",
+      help="Google AI Studioで取得したAPIキーを入力してください",
   )
 
   col_api1, col_api2 = st.columns(2)
   with col_api1:
     if st.button("💾 キーを保存"):
       st.session_state.saved_gemini_key = temp_key
+      st.query_params["api_key"] = temp_key
       st.success("APIキーを保存しました！")
       st.rerun()
   with col_api2:
     if st.button("🗑️ キーを削除"):
       st.session_state.saved_gemini_key = ""
+      if "api_key" in st.query_params:
+        del st.query_params["api_key"]
       st.success("APIキーを削除しました。")
       st.rerun()
 
@@ -326,9 +323,9 @@ with st.sidebar:
   st.markdown(
       """
     <div class="api-link-box">
-        💡 <strong>Gemini APIはクレカ不要・完全無料</strong>で誰でも即座に取得可能です。<br>
+        💡 <strong>Google AI Studio</strong> のAPIキーを入力して実行します。<br>
         <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#00F2FE; font-weight:bold; text-decoration:underline;">
-            👉 Google AI Studio で無料APIキーを発行
+            👉 Google AI Studio でキー管理
         </a>
     </div>
     """,
@@ -376,18 +373,19 @@ with st.sidebar:
     )
 
   license_input = st.text_input(
-      "ライセンスキー認証", placeholder="PRO-XXXX-XXXX"
+      "ライセンスキー認証", placeholder="VIP2026 または PRO-..."
   )
   if st.button("ライセンスを適用"):
     if verify_license(license_input):
       st.session_state.is_pro = True
+      st.query_params["pro"] = "true"
       st.success("⚡ PROライセンスが有効化されました！")
       st.rerun()
     else:
       st.error("無効なライセンスキーです。")
 
 # ==========================================
-# メイン画面（中央集約レイアウト）
+# メイン画面
 # ==========================================
 
 st.markdown(
@@ -424,7 +422,7 @@ with tab1:
                     🔒 MODE 1: PRO FEATURE LOCKED
                 </h3>
                 <p style="color: #E2E8F0; font-size: 14px; line-height: 1.7; margin-bottom: 22px;">
-                    長尺動画の音声抽出、高精度Whisper解析、タイムコード付きSRT自動生成機能はPRO限定です。<br>
+                    長尺動画の音声抽出、高精度解析、タイムコード付きSRT自動生成機能はPRO限定です。<br>
                     初月無料トライアルですぐに全機能をお試しいただけます。
                 </p>
                 <a href="{STRIPE_PAYMENT_URL}" target="_blank" style="text-decoration: none;">
@@ -465,9 +463,7 @@ with tab1:
 
       if st.button("AI一括翻訳・ローカライズを実行", type="primary"):
         if not gemini_key:
-          st.warning(
-              "⚠️ サイドバーでGemini APIキーを入力してください。"
-          )
+          st.warning("⚠️ サイドバーでGemini APIキーを入力してください。")
         else:
           try:
             import google.generativeai as genai
@@ -524,9 +520,22 @@ with tab2:
     elif not source_text:
       st.warning("⚠️ 翻訳するテキストを入力してください。")
     else:
-      st.success("翻訳完了！")
-      st.markdown(f"**[{target_lang} 翻訳結果]**")
-      st.info(f"Translated: {source_text}")
+      try:
+        import google.generativeai as genai
+
+        genai.configure(api_key=gemini_key)
+        model = genai.GenerativeModel("gemini-2.5-flash")
+
+        with st.spinner("🤖 Gemini AIが翻訳中..."):
+          response = model.generate_content(
+              f"以下のテキストを自然な {target_lang}"
+              f" に翻訳してください:\n\n{source_text}"
+          )
+          st.success("翻訳完了！")
+          st.markdown(f"**[{target_lang} 翻訳結果]**")
+          st.markdown(response.text)
+      except Exception as e:
+        st.error(f"エラーが発生しました: {e}")
 
 # MODE 3
 with tab3:
@@ -553,7 +562,7 @@ with tab3:
       else:
         st.info("YouTube動画のメタデータおよび字幕ストリームを解析中...")
 
-# 📖 使い方ガイド ＆ 料金プラン（HTMLスライドカード形式）
+# 📖 使い方ガイド ＆ 料金プラン
 with tab4:
   st.markdown("### 📖 TRANSLY PRO ご利用ガイド & 料金プラン")
 
@@ -573,14 +582,14 @@ with tab4:
             <h4 style="color: #00F2FE; font-family: Orbitron; margin-top:0;">STEP 01</h4>
             <p style="font-weight: bold; color: #FFFFFF; margin-bottom: 6px;">Gemini APIキー設定</p>
             <p style="font-size: 0.82rem; color: #94A3B8; line-height: 1.5;">
-                Google AI Studioから完全無料のAPIキーを取得し、サイドバーに入力・保存します。
+                Google AI StudioからAPIキーを取得し、サイドバーに入力・保存します。
             </p>
         </div>
         <div style="flex: 1; border-right: 1px solid rgba(0, 242, 254, 0.2); padding-right: 15px; padding-left: 5px;">
             <h4 style="color: #00F2FE; font-family: Orbitron; margin-top:0;">STEP 02</h4>
             <p style="font-weight: bold; color: #FFFFFF; margin-bottom: 6px;">モードを選ぶ・翻訳</p>
             <p style="font-size: 0.82rem; color: #94A3B8; line-height: 1.5;">
-                MODE 2（テキスト翻訳）やMODE 3（YouTube URL解析）はいつでも無料で使えます。
+                MODE 2（テキスト翻訳）やMODE 3（YouTube URL解析）などが利用可能です。
             </p>
         </div>
         <div style="flex: 1; padding-left: 5px;">
@@ -626,7 +635,7 @@ with tab4:
                 <hr style="border-color: rgba(255, 0, 127, 0.3); margin: 15px 0;">
                 <p style="font-size: 0.88rem; color: #CBD5E1; text-align: left; line-height: 1.6;">
                     🔥 MODE 1（長尺動画・音声一括翻訳）が無制限<br>
-                    🔥 高精度Whisper解析 & SRT自動生成<br>
+                    🔥 高精度解析 & SRT自動生成<br>
                     🔥 クレカ / Apple Pay / Google Pay 対応
                 </p>
                 <a href="{STRIPE_PAYMENT_URL}" target="_blank" style="text-decoration: none; display: block; margin-top: 15px;">
