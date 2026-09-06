@@ -1,5 +1,5 @@
 """
-TRANSLY PRO | AI Video Localization System (Subscription & Trial Expiration Security)
+TRANSLY PRO | AI Video Localization System (Clean Sidebar & UI Updated)
 """
 
 import streamlit as st
@@ -18,47 +18,37 @@ st.set_page_config(
 )
 
 # ==========================================
-# 永続化パラメータ & サブスク/トライアル有効期限の管理
+# 永続化パラメータの管理
 # ==========================================
 query_params = st.query_params
 
-# セッション状態の初期化
 if "is_pro" not in st.session_state:
   st.session_state.is_pro = False
 if "pro_expiry_date" not in st.session_state:
   st.session_state.pro_expiry_date = None
 
-# URLパラメータからのPRO有効化・決済確認シミュレーション
 is_url_pro = query_params.get("pro") == "true"
 if is_url_pro:
   st.session_state.is_pro = True
-  # 初回アクセス時に30日後の期限を設定（本番ではStripe Webhook等で管理）
   if not st.session_state.pro_expiry_date:
     st.session_state.pro_expiry_date = (
         datetime.now() + timedelta(days=30)
     ).strftime("%Y-%m-%d")
 
 # ==========================================
-# 🔒 【重要】サブスク継続 / 有効期限のチェックロジック
+# サブスク継続 / 有効期限のチェックロジック
 # ==========================================
 def check_subscription_status() -> bool:
-  """毎月の決済確認が取れているか、またはトライアル期間内かを厳密にチェックする"""
   if not st.session_state.is_pro:
     return False
 
-  # 1. 有効期限（30日）が過ぎていないかチェック
   if st.session_state.pro_expiry_date:
     expiry = datetime.strptime(st.session_state.pro_expiry_date, "%Y-%m-%d")
     if datetime.now() > expiry:
-      # 期限切れ：自動的にPROを剥奪
       st.session_state.is_pro = False
       return False
 
-  # 2. 月額決済（Stripeサブスクリプション）の継続確認チェック
-  # ※本番環境ではここでStripe APIを叩き、顧客のサブスクリプションステータスが "active" かどうかを判定します。
-  # 決済失敗や未払い（past_due, canceled）の場合は False を返して有料版をロックします。
-  subscription_active = True  # ← 本番ではStripeの返り値に置き換え
-
+  subscription_active = True
   if not subscription_active:
     st.session_state.is_pro = False
     return False
@@ -66,7 +56,6 @@ def check_subscription_status() -> bool:
   return True
 
 
-# 毎フレーム実行時にライセンス状態を検証
 st.session_state.is_pro = check_subscription_status()
 
 url_api_key = query_params.get("api_key", "")
@@ -428,15 +417,14 @@ with st.sidebar:
         '<div class="pro-badge">PRO PLAN ACTIVE ⚡</div>', unsafe_allow_html=True
     )
     if st.session_state.pro_expiry_date:
-      st.caption(f"📅 有効期限: {st.session_state.pro_expiry_date} まで")
-
-    if st.button("🚪 PROプランを解約 / 期限切れテスト"):
-      st.session_state.is_pro = False
-      st.session_state.pro_expiry_date = None
-      if "pro" in st.query_params:
-        del st.query_params["pro"]
-      st.warning("PROプランが失効しました。")
-      st.rerun()
+      # 有効期限の文字色を明るく見やすくハイライト
+      st.markdown(
+          f"<p"
+          f" style='color:#00F2FE; font-size:0.85rem; text-align:center;"
+          f" margin-top:6px; font-weight:600;'>📅 有効期限:"
+          f" {st.session_state.pro_expiry_date} まで</p>",
+          unsafe_allow_html=True,
+      )
   else:
     st.markdown(
         '<div class="free-badge">FREE PLAN (RESTRICTED)</div>',
@@ -471,7 +459,9 @@ with st.sidebar:
     )
 
   license_input = st.text_input(
-      "ライセンスキー認証", placeholder="VIP2026 または PRO-..."
+      "ライセンスキー認証",
+      value="",
+      placeholder="VIP2026 または PRO-...",
   )
   if st.button("ライセンスを適用"):
     if verify_license(license_input):
