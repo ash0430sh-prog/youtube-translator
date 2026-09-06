@@ -1,5 +1,5 @@
 """
-TRANSLY PRO | AI Video Localization System (UI & Radio Button Optimized)
+TRANSLY PRO | AI Video Localization System (Auto-Recovery & Smart Retry Enabled)
 """
 
 import streamlit as st
@@ -38,7 +38,7 @@ if "m2_result" not in st.session_state:
 
 STRIPE_PAYMENT_URL = "https://buy.stripe.com/aFacN72GA4KiaIb9T46sw00"
 
-# 共通CSSスタイル（ラジオボタンや文字の拡大、位置調整）
+# 共通CSSスタイル
 st.markdown(
     """
 <style>
@@ -175,14 +175,12 @@ st.markdown(
         box-shadow: 0 0 15px rgba(0, 242, 254, 0.08);
     }
 
-    /* ラジオボタンの文字サイズを大きくする */
     div.stRadio label {
         font-size: 1.05rem !important;
         font-weight: 600 !important;
         color: #F1F5F9 !important;
     }
     
-    /* チェックボックスの文字サイズを大きくし、縦位置を揃える */
     div.stCheckbox label {
         font-size: 1.05rem !important;
         font-weight: 600 !important;
@@ -293,6 +291,36 @@ def verify_license(key_str: str) -> bool:
     return False
   clean_key = key_str.strip().upper()
   return clean_key.startswith("PRO-") or clean_key in ["VIP2026", "TRIAL2026"]
+
+
+# ==========================================
+# 自動リカバリー（スマートリトライ & フォールバック）関数
+# ==========================================
+def call_gemini_with_auto_retry(client, contents_data):
+  """503エラーや混雑時に自動でモデルを切り替えながら最大3回まで再試行する関数"""
+  models_to_try = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
+
+  for model_name in models_to_try:
+    for attempt in range(2):  -  # 各モデルで2回まで試す
+      try:
+        response = client.models.generate_content(
+            model=model_name, contents=contents_data
+        )
+        return response
+      except Exception as e:
+        err_str = str(e)
+        if "503" in err_str or "UNAVAILABLE" in err_str or "high demand" in err_str:
+          time.sleep(2)  # 2秒待ってリトライ
+          continue
+        elif "404" in err_str or "NOT_FOUND" in err_str:
+          # モデルが見つからない場合は次のモデルにフォールバック
+          break
+        else:
+          # その他のエラーはそのまま投げる
+          raise e
+  raise Exception(
+      "サーバーが非常に混雑しています。少し時間を置いてから再度実行してください。"
+  )
 
 
 # ==========================================
@@ -523,7 +551,7 @@ with tab1:
             client = genai.Client(api_key=gemini_key)
 
             with st.spinner(
-                "🤖 Gemini AIが動画ファイルと音声を解析・翻訳中..."
+                "🤖 Gemini AIが自動リカバリー機能を使って解析・翻訳中..."
             ):
               with tempfile.NamedTemporaryFile(
                   delete=False, suffix="." + uploaded_video.name.split(".")[-1]
@@ -559,8 +587,9 @@ with tab1:
                             {summary_instruction}
                             """
 
-              response = client.models.generate_content(
-                  model="gemini-3.6-flash", contents=[video_file, prompt]
+              # 自動リトライ関数を通す
+              response = call_gemini_with_auto_retry(
+                  client, [video_file, prompt]
               )
 
               st.success("🎉 ローカライズ・翻訳処理が完了しました！")
@@ -576,7 +605,9 @@ with tab1:
               )
 
           except Exception as e:
-            st.error(f"エラーが発生しました: {e}")
+            st.error(
+                f"エラーが発生しました（自動リカバリー上限に達しました）: {e}"
+            )
 
 # MODE 2
 with tab2:
@@ -656,10 +687,8 @@ with tab2:
                 {source_text}
                 """
 
-        with st.spinner("🤖 Gemini AIが翻訳中..."):
-          response = client.models.generate_content(
-              model="gemini-3.6-flash", contents=prompt
-          )
+        with st.spinner("🤖 Gemini AIが自動リカバリー機能を使って翻訳中..."):
+          response = call_gemini_with_auto_retry(client, prompt)
           st.success("翻訳完了！")
           st.markdown(f"**[{target_lang} 翻訳結果]**")
           st.markdown(response.text)
@@ -750,9 +779,7 @@ with tab3:
                     
                     {summary_inst_3}
                     """
-          response = client.models.generate_content(
-              model="gemini-3.6-flash", contents=prompt
-          )
+          response = call_gemini_with_auto_retry(client, prompt)
 
           st.success("🎉 YouTube動画のローカライズが完了しました！")
           st.markdown(response.text)
@@ -799,9 +826,9 @@ with tab4:
         </div>
         <div style="flex: 1; padding-left: 5px;">
             <h4 style="color: #FF007F; font-family: Orbitron; margin-top:0;">STEP 03</h4>
-            <p style="font-weight: bold; color: #FFFFFF; margin-bottom: 6px;">一発ダウンロード</p>
+            <p style="font-weight: bold; color: #FFFFFF; margin-bottom: 6px;">自動リカバリー & DL</p>
             <p style="font-size: 0.82rem; color: #94A3B8; line-height: 1.5;">
-                生成された結果をそのままファイルとして保存して動画編集に活用できます。
+                混雑エラー等はアプリが自動で再試行。結果はボタン一つで保存できます。
             </p>
         </div>
     </div>
