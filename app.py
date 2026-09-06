@@ -1,5 +1,5 @@
 """
-TRANSLY PRO | AI Video Localization System (New Google GenAI SDK Supported)
+TRANSLY PRO | AI Video Localization System (Gemini 3.6 Flash Supported)
 """
 
 import streamlit as st
@@ -479,10 +479,8 @@ with tab1:
                 tmp_file.write(uploaded_video.getvalue())
                 tmp_path = tmp_file.name
 
-              # 新しいSDKでのファイルアップロード
               video_file = client.files.upload(file=tmp_path)
 
-              # 処理完了まで待機
               while video_file.state.name == "PROCESSING":
                 time.sleep(2)
                 video_file = client.files.get(name=video_file.name)
@@ -493,7 +491,7 @@ with tab1:
                             """
 
               response = client.models.generate_content(
-                  model="gemini-2.5-flash", contents=[video_file, prompt]
+                  model="gemini-3.6-flash", contents=[video_file, prompt]
               )
 
               st.success("🎉 ローカライズ・翻訳処理が完了しました！")
@@ -530,7 +528,7 @@ with tab2:
 
         with st.spinner("🤖 Gemini AIが翻訳中..."):
           response = client.models.generate_content(
-              model="gemini-2.5-flash",
+              model="gemini-3.6-flash",
               contents=(
                   f"以下のテキストを自然な {target_lang}"
                   f" に翻訳してください:\n\n{source_text}"
