@@ -1,5 +1,5 @@
 """
-TRANSLY PRO | AI Video Localization System (All Modes Enhanced with DL & Cyber UI)
+TRANSLY PRO | AI Video Localization System (UI & Radio Button Optimized)
 """
 
 import streamlit as st
@@ -17,7 +17,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# 永続化パラメータの管理 (URLクエリパラメータを利用)
+# 永続化パラメータの管理
 # ==========================================
 query_params = st.query_params
 
@@ -36,12 +36,9 @@ elif url_api_key and not st.session_state.saved_gemini_key:
 if "m2_result" not in st.session_state:
   st.session_state.m2_result = None
 
-# ==========================================
-# STRIPE 決済リンク設定
-# ==========================================
 STRIPE_PAYMENT_URL = "https://buy.stripe.com/aFacN72GA4KiaIb9T46sw00"
 
-# 共通CSSスタイル（サイバーパンク調の選択カード等）
+# 共通CSSスタイル（ラジオボタンや文字の拡大、位置調整）
 st.markdown(
     """
 <style>
@@ -173,9 +170,24 @@ st.markdown(
         background: linear-gradient(135deg, rgba(13, 22, 44, 0.9) 0%, rgba(10, 15, 30, 0.95) 100%);
         border: 1px solid rgba(0, 242, 254, 0.25);
         border-radius: 10px;
-        padding: 16px;
-        margin-bottom: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
         box-shadow: 0 0 15px rgba(0, 242, 254, 0.08);
+    }
+
+    /* ラジオボタンの文字サイズを大きくする */
+    div.stRadio label {
+        font-size: 1.05rem !important;
+        font-weight: 600 !important;
+        color: #F1F5F9 !important;
+    }
+    
+    /* チェックボックスの文字サイズを大きくし、縦位置を揃える */
+    div.stCheckbox label {
+        font-size: 1.05rem !important;
+        font-weight: 600 !important;
+        color: #F1F5F9 !important;
+        padding-top: 4px;
     }
 </style>
 """,
@@ -465,13 +477,15 @@ with tab1:
       st.info(f"📁 読み込み完了: {uploaded_video.name}")
 
       st.markdown(
-          "<div class='cyber-card'><p style='color:#00F2FE;"
-          " font-family:Orbitron; font-weight:bold; margin-bottom:8px;'>⚙️"
-          " CONFIG // 翻訳・出力設定</p></div>",
+          "<div class='cyber-card'>"
+          "<p"
+          " style='color:#00F2FE; font-family:Orbitron; font-weight:bold;"
+          " font-size:1.1rem; margin-bottom:15px;'>⚙️ CONFIG //"
+          " 翻訳・出力設定</p>",
           unsafe_allow_html=True,
       )
 
-      col_opt1, col_opt2 = st.columns(2)
+      col_opt1, col_opt2 = st.columns([1, 1], gap="large")
       with col_opt1:
         m1_lang = st.selectbox(
             "ターゲット出力言語",
@@ -488,12 +502,16 @@ with tab1:
         )
 
       with col_opt2:
-        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div style='height: 32px;'></div>", unsafe_allow_html=True
+        )
         include_summary_1 = st.checkbox(
             "📊 動画の要約とSNS用タイトル案を合わせて出力する",
             value=True,
             key="m1_summary",
         )
+
+      st.markdown("</div>", unsafe_allow_html=True)
 
       if st.button("🚀 AI一括翻訳・ローカライズを実行", type="primary"):
         if not gemini_key:
@@ -549,7 +567,6 @@ with tab1:
               st.markdown("### 📝 翻訳・字幕出力結果")
               st.markdown(response.text)
 
-              # ダウンロードボタン
               file_ext = "srt" if "SRT" in output_format_1 else "txt"
               st.download_button(
                   label=f"💾 結果をファイル（.{file_ext}）でダウンロード",
@@ -571,13 +588,15 @@ with tab2:
   )
 
   st.markdown(
-      "<div class='cyber-card'><p style='color:#00F2FE;"
-      " font-family:Orbitron; font-weight:bold; margin-bottom:8px;'>⚙️"
-      " CONFIG // 翻訳・出力設定</p></div>",
+      "<div class='cyber-card'>"
+      "<p"
+      " style='color:#00F2FE; font-family:Orbitron; font-weight:bold;"
+      " font-size:1.1rem; margin-bottom:15px;'>⚙️ CONFIG //"
+      " 翻訳・出力設定</p>",
       unsafe_allow_html=True,
   )
 
-  col_m2_1, col_m2_2 = st.columns(2)
+  col_m2_1, col_m2_2 = st.columns([1, 1], gap="large")
   with col_m2_1:
     target_lang = st.selectbox(
         "出力ターゲット言語",
@@ -594,12 +613,14 @@ with tab2:
     )
 
   with col_m2_2:
-    st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 32px;'></div>", unsafe_allow_html=True)
     include_summary_2 = st.checkbox(
         "📊 テキストの要約とタイトル案を合わせて出力する",
         value=False,
         key="m2_summary",
     )
+
+  st.markdown("</div>", unsafe_allow_html=True)
 
   if st.button("⚡ 高速AI翻訳を実行", key="m2_btn"):
     if not gemini_key:
@@ -662,13 +683,15 @@ with tab3:
   )
 
   st.markdown(
-      "<div class='cyber-card'><p style='color:#00F2FE;"
-      " font-family:Orbitron; font-weight:bold; margin-bottom:8px;'>⚙️"
-      " CONFIG // 翻訳・出力設定</p></div>",
+      "<div class='cyber-card'>"
+      "<p"
+      " style='color:#00F2FE; font-family:Orbitron; font-weight:bold;"
+      " font-size:1.1rem; margin-bottom:15px;'>⚙️ CONFIG //"
+      " 翻訳・出力設定</p>",
       unsafe_allow_html=True,
   )
 
-  col_m3_1, col_m3_2 = st.columns(2)
+  col_m3_1, col_m3_2 = st.columns([1, 1], gap="large")
   with col_m3_1:
     m3_lang = st.selectbox(
         "翻訳先言語", ["日本語", "英語", "中国語", "韓国語"], key="m3_lang"
@@ -683,12 +706,14 @@ with tab3:
     )
 
   with col_m3_2:
-    st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 32px;'></div>", unsafe_allow_html=True)
     include_summary_3 = st.checkbox(
         "📊 動画の要約とSNS用タイトル案を合わせて出力する",
         value=True,
         key="m3_summary",
     )
+
+  st.markdown("</div>", unsafe_allow_html=True)
 
   col_btn1, col_btn2 = st.columns(2)
   with col_btn1:
@@ -709,6 +734,11 @@ with tab3:
             if "SRT" in output_format_3
             else "通常のテキスト形式で出力してください。"
         )
+        summary_inst_3 = (
+            "さらに、動画の要約とSNS用タイトル案も合わせて出力してください。"
+            if include_summary_3
+            else ""
+        )
 
         with st.spinner("🌐 YouTube動画データおよび音声を解析・翻訳中..."):
           prompt = f"""
@@ -717,6 +747,8 @@ with tab3:
                     
                     【出力形式の指定】
                     {format_inst_3}
+                    
+                    {summary_inst_3}
                     """
           response = client.models.generate_content(
               model="gemini-3.6-flash", contents=prompt
