@@ -1,5 +1,5 @@
 """
-TRANSLY PRO | AI Video Localization System (Custom Output Options Added)
+TRANSLY PRO | AI Video Localization System (All Modes Enhanced with DL & Cyber UI)
 """
 
 import streamlit as st
@@ -41,7 +41,7 @@ if "m2_result" not in st.session_state:
 # ==========================================
 STRIPE_PAYMENT_URL = "https://buy.stripe.com/aFacN72GA4KiaIb9T46sw00"
 
-# 共通CSSスタイル
+# 共通CSSスタイル（サイバーパンク調の選択カード等）
 st.markdown(
     """
 <style>
@@ -167,6 +167,15 @@ st.markdown(
         margin-bottom: 12px;
         border-radius: 0 8px 8px 0;
         line-height: 1.5;
+    }
+    
+    .cyber-card {
+        background: linear-gradient(135deg, rgba(13, 22, 44, 0.9) 0%, rgba(10, 15, 30, 0.95) 100%);
+        border: 1px solid rgba(0, 242, 254, 0.25);
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 15px;
+        box-shadow: 0 0 15px rgba(0, 242, 254, 0.08);
     }
 </style>
 """,
@@ -455,16 +464,22 @@ with tab1:
     if uploaded_video:
       st.info(f"📁 読み込み完了: {uploaded_video.name}")
 
-      # 設定オプション列
+      st.markdown(
+          "<div class='cyber-card'><p style='color:#00F2FE;"
+          " font-family:Orbitron; font-weight:bold; margin-bottom:8px;'>⚙️"
+          " CONFIG // 翻訳・出力設定</p></div>",
+          unsafe_allow_html=True,
+      )
+
       col_opt1, col_opt2 = st.columns(2)
       with col_opt1:
         m1_lang = st.selectbox(
-            "翻訳・ローカライズ出力言語",
+            "ターゲット出力言語",
             ["日本語", "英語 (US)", "簡体字中国語", "韓国語"],
             key="m1_lang",
         )
-        output_format = st.radio(
-            "出力形式の選択",
+        output_format_1 = st.radio(
+            "📄 出力形式を選択",
             [
                 "通常のテキスト版（文字起こし＋翻訳）",
                 "タイムコード付き字幕テキスト（SRT形式風）",
@@ -474,13 +489,13 @@ with tab1:
 
       with col_opt2:
         st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-        include_summary = st.checkbox(
-            "動画の要約とSNS用タイトル案を合わせて出力する",
+        include_summary_1 = st.checkbox(
+            "📊 動画の要約とSNS用タイトル案を合わせて出力する",
             value=True,
             key="m1_summary",
         )
 
-      if st.button("AI一括翻訳・ローカライズを実行", type="primary"):
+      if st.button("🚀 AI一括翻訳・ローカライズを実行", type="primary"):
         if not gemini_key:
           st.warning("⚠️ サイドバーでGemini APIキーを入力してください。")
         else:
@@ -504,16 +519,15 @@ with tab1:
                 time.sleep(2)
                 video_file = client.files.get(name=video_file.name)
 
-              # プロンプトの条件分岐構築
               format_instruction = (
                   "タイムコード付きの字幕テキスト（SRT形式風、例: [00:00 - 00:05] セリフ...）として出力してください。"
-                  if "SRT" in output_format
+                  if "SRT" in output_format_1
                   else "読みやすい通常のテキスト形式（話者ごとの文字起こしと自然な翻訳）で出力してください。"
               )
 
               summary_instruction = (
                   "さらに、動画の要約とSNS用タイトル案も合わせて出力してください。"
-                  if include_summary
+                  if include_summary_1
                   else "※要約およびタイトル案の出力は不要です。"
               )
 
@@ -535,6 +549,15 @@ with tab1:
               st.markdown("### 📝 翻訳・字幕出力結果")
               st.markdown(response.text)
 
+              # ダウンロードボタン
+              file_ext = "srt" if "SRT" in output_format_1 else "txt"
+              st.download_button(
+                  label=f"💾 結果をファイル（.{file_ext}）でダウンロード",
+                  data=response.text,
+                  file_name=f"transly_result.{file_ext}",
+                  mime="text/plain",
+              )
+
           except Exception as e:
             st.error(f"エラーが発生しました: {e}")
 
@@ -546,11 +569,37 @@ with tab2:
       height=140,
       placeholder="ここにスクリプトや字幕を入力...",
   )
-  target_lang = st.selectbox(
-      "出力ターゲット言語",
-      ["日本語", "英語 (US)", "簡体字中国語", "韓国語", "スペイン語"],
-      key="m2_lang",
+
+  st.markdown(
+      "<div class='cyber-card'><p style='color:#00F2FE;"
+      " font-family:Orbitron; font-weight:bold; margin-bottom:8px;'>⚙️"
+      " CONFIG // 翻訳・出力設定</p></div>",
+      unsafe_allow_html=True,
   )
+
+  col_m2_1, col_m2_2 = st.columns(2)
+  with col_m2_1:
+    target_lang = st.selectbox(
+        "出力ターゲット言語",
+        ["日本語", "英語 (US)", "簡体字中国語", "韓国語", "スペイン語"],
+        key="m2_lang",
+    )
+    output_format_2 = st.radio(
+        "📄 出力形式を選択",
+        [
+            "通常のテキスト版（翻訳文のみ）",
+            "タイムコード付き字幕テキスト（SRT形式風）",
+        ],
+        key="m2_format",
+    )
+
+  with col_m2_2:
+    st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+    include_summary_2 = st.checkbox(
+        "📊 テキストの要約とタイトル案を合わせて出力する",
+        value=False,
+        key="m2_summary",
+    )
 
   if st.button("⚡ 高速AI翻訳を実行", key="m2_btn"):
     if not gemini_key:
@@ -563,17 +612,44 @@ with tab2:
 
         client = genai.Client(api_key=gemini_key)
 
+        format_inst_2 = (
+            "タイムコード付きの字幕テキスト（SRT形式風）として出力してください。"
+            if "SRT" in output_format_2
+            else "通常の読みやすいテキスト形式で出力してください。"
+        )
+        summary_inst_2 = (
+            "さらに、テキストの要約とタイトル案も合わせて出力してください。"
+            if include_summary_2
+            else ""
+        )
+
+        prompt = f"""
+                以下のテキストを自然な {target_lang} に翻訳してください。
+                
+                【出力形式の指定】
+                {format_inst_2}
+                
+                {summary_inst_2}
+                
+                ---
+                {source_text}
+                """
+
         with st.spinner("🤖 Gemini AIが翻訳中..."):
           response = client.models.generate_content(
-              model="gemini-3.6-flash",
-              contents=(
-                  f"以下のテキストを自然な {target_lang}"
-                  f" に翻訳してください:\n\n{source_text}"
-              ),
+              model="gemini-3.6-flash", contents=prompt
           )
           st.success("翻訳完了！")
           st.markdown(f"**[{target_lang} 翻訳結果]**")
           st.markdown(response.text)
+
+          file_ext_2 = "srt" if "SRT" in output_format_2 else "txt"
+          st.download_button(
+              label=f"💾 翻訳結果をダウンロード（.{file_ext_2}）",
+              data=response.text,
+              file_name=f"transly_text_result.{file_ext_2}",
+              mime="text/plain",
+          )
       except Exception as e:
         st.error(f"エラーが発生しました: {e}")
 
@@ -584,23 +660,80 @@ with tab3:
       "YouTube動画URLを入力",
       placeholder="https://www.youtube.com/watch?v=...",
   )
-  m3_lang = st.selectbox(
-      "翻訳先言語", ["日本語", "英語", "中国語", "韓国語"], key="m3_lang"
+
+  st.markdown(
+      "<div class='cyber-card'><p style='color:#00F2FE;"
+      " font-family:Orbitron; font-weight:bold; margin-bottom:8px;'>⚙️"
+      " CONFIG // 翻訳・出力設定</p></div>",
+      unsafe_allow_html=True,
   )
+
+  col_m3_1, col_m3_2 = st.columns(2)
+  with col_m3_1:
+    m3_lang = st.selectbox(
+        "翻訳先言語", ["日本語", "英語", "中国語", "韓国語"], key="m3_lang"
+    )
+    output_format_3 = st.radio(
+        "📄 出力形式を選択",
+        [
+            "通常のテキスト版（字幕抽出＋翻訳）",
+            "タイムコード付き字幕テキスト（SRT形式風）",
+        ],
+        key="m3_format",
+    )
+
+  with col_m3_2:
+    st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+    include_summary_3 = st.checkbox(
+        "📊 動画の要約とSNS用タイトル案を合わせて出力する",
+        value=True,
+        key="m3_summary",
+    )
 
   col_btn1, col_btn2 = st.columns(2)
   with col_btn1:
-    fetch_srt = st.button("📄 字幕(SRT)データを抽出")
+    fetch_srt = st.button("📄 字幕データを抽出・翻訳")
   with col_btn2:
-    translate_yt = st.button("🚀 翻訳・タイトル案を自動生成")
+    translate_yt = st.button("🚀 フル解析・タイトル案を自動生成")
 
-  if youtube_url:
-    st.caption(f"ターゲット動画: {youtube_url}")
-    if fetch_srt or translate_yt:
-      if not gemini_key:
-        st.warning("⚠️ サイドバーでGemini APIキーを入力してください。")
-      else:
-        st.info("YouTube動画のメタデータおよび字幕ストリームを解析中...")
+  if youtube_url and (fetch_srt or translate_yt):
+    if not gemini_key:
+      st.warning("⚠️ サイドバーでGemini APIキーを入力してください。")
+    else:
+      try:
+        from google import genai
+
+        client = genai.Client(api_key=gemini_key)
+        format_inst_3 = (
+            "タイムコード付きの字幕テキスト（SRT形式風）として出力してください。"
+            if "SRT" in output_format_3
+            else "通常のテキスト形式で出力してください。"
+        )
+
+        with st.spinner("🌐 YouTube動画データおよび音声を解析・翻訳中..."):
+          prompt = f"""
+                    YouTube URL: {youtube_url}
+                    この動画の音声または公開字幕データを基に、自然な {m3_lang} にローカライズしてください。
+                    
+                    【出力形式の指定】
+                    {format_inst_3}
+                    """
+          response = client.models.generate_content(
+              model="gemini-3.6-flash", contents=prompt
+          )
+
+          st.success("🎉 YouTube動画のローカライズが完了しました！")
+          st.markdown(response.text)
+
+          file_ext_3 = "srt" if "SRT" in output_format_3 else "txt"
+          st.download_button(
+              label=f"💾 結果をダウンロード（.{file_ext_3}）",
+              data=response.text,
+              file_name=f"youtube_transly.{file_ext_3}",
+              mime="text/plain",
+          )
+      except Exception as e:
+        st.error(f"エラーが発生しました: {e}")
 
 # 📖 使い方ガイド ＆ 料金プラン
 with tab4:
@@ -627,16 +760,16 @@ with tab4:
         </div>
         <div style="flex: 1; border-right: 1px solid rgba(0, 242, 254, 0.2); padding-right: 15px; padding-left: 5px;">
             <h4 style="color: #00F2FE; font-family: Orbitron; margin-top:0;">STEP 02</h4>
-            <p style="font-weight: bold; color: #FFFFFF; margin-bottom: 6px;">モードを選ぶ・翻訳</p>
+            <p style="font-weight: bold; color: #FFFFFF; margin-bottom: 6px;">モードを選ぶ・出力設定</p>
             <p style="font-size: 0.82rem; color: #94A3B8; line-height: 1.5;">
-                MODE 2（テキスト翻訳）やMODE 3（YouTube URL解析）などが利用可能です。
+                テキスト形式やSRT形式、要約の有無を好みに合わせて選択して実行します。
             </p>
         </div>
         <div style="flex: 1; padding-left: 5px;">
             <h4 style="color: #FF007F; font-family: Orbitron; margin-top:0;">STEP 03</h4>
-            <p style="font-weight: bold; color: #FFFFFF; margin-bottom: 6px;">PROプランで全開放</p>
+            <p style="font-weight: bold; color: #FFFFFF; margin-bottom: 6px;">一発ダウンロード</p>
             <p style="font-size: 0.82rem; color: #94A3B8; line-height: 1.5;">
-                長尺動画の音声抽出・翻訳(MODE 1)を利用するには初月無料プランへ登録！
+                生成された結果をそのままファイルとして保存して動画編集に活用できます。
             </p>
         </div>
     </div>
