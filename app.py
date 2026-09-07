@@ -1,5 +1,5 @@
 """
-TRANSLY PRO | AI Video Localization System (Secure Subscription & Clean Placeholder)
+TRANSLY PRO | AI Video Localization System (Conditional License Input & Security)
 """
 
 import streamlit as st
@@ -27,7 +27,6 @@ if "is_pro" not in st.session_state:
 if "pro_expiry_date" not in st.session_state:
   st.session_state.pro_expiry_date = None
 
-# 正規の決済完了ルート（Stripe等からのリダイレクト ?pro=true）でのみPRO有効化
 is_url_pro = query_params.get("pro") == "true"
 if is_url_pro:
   st.session_state.is_pro = True
@@ -36,21 +35,27 @@ if is_url_pro:
         datetime.now() + timedelta(days=30)
     ).strftime("%Y-%m-%d")
 
+
+def verify_license(key_str: str) -> bool:
+  if not key_str:
+    return False
+  clean_key = key_str.strip().upper()
+  return clean_key.startswith("PRO-") or clean_key in ["VIP2026", "TRIAL2026"]
+
+
 # ==========================================
-# 🔒 サブスク継続 / 有効期限のチェックロジック
+# サブスク継続 / 有効期限のチェックロジック
 # ==========================================
 def check_subscription_status() -> bool:
   if not st.session_state.is_pro:
     return False
 
-  # 有効期限（30日）チェック
   if st.session_state.pro_expiry_date:
     expiry = datetime.strptime(st.session_state.pro_expiry_date, "%Y-%m-%d")
     if datetime.now() > expiry:
       st.session_state.is_pro = False
       return False
 
-  # 毎月の決済継続チェック（本番ではStripe APIと連動）
   subscription_active = True
   if not subscription_active:
     st.session_state.is_pro = False
@@ -453,6 +458,24 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
+    # 未購入のフリーユーザーにだけライセンスキー入力欄を表示
+    license_input = st.text_input(
+        "ライセンスキー認証",
+        value="",
+        placeholder="取得したキーを入力",
+    )
+    if st.button("ライセンスを適用"):
+      if verify_license(license_input):
+        st.session_state.is_pro = True
+        st.session_state.pro_expiry_date = (
+            datetime.now() + timedelta(days=30)
+        ).strftime("%Y-%m-%d")
+        st.query_params["pro"] = "true"
+        st.success("⚡ PROライセンス（30日間）が有効化されました！")
+        st.rerun()
+      else:
+        st.error("無効なライセンスキーです。")
+
 # ==========================================
 # メイン画面
 # ==========================================
@@ -831,22 +854,22 @@ with tab4:
     ">
         <div style="flex: 1; border-right: 1px solid rgba(0, 242, 254, 0.2); padding-right: 15px;">
             <h4 style="color: #00F2FE; font-family: Orbitron; margin-top:0;">STEP 01</h4>
-            <p style="font-weight: bold; color: #FFFFFF; margin-bottom: 6px;">Gemini APIキー設定</p>
-            <p style="font-size: 0.82rem; color: #94A3B8; line-height: 1.5;">
+            <p style='font-weight: bold; color: #FFFFFF; margin-bottom: 6px;'>Gemini APIキー設定</p>
+            <p style='font-size: 0.82rem; color: #94A3B8; line-height: 1.5;'>
                 Google AI StudioからAPIキーを取得し、サイドバーに入力・保存します。
             </p>
         </div>
         <div style="flex: 1; border-right: 1px solid rgba(0, 242, 254, 0.2); padding-right: 15px; padding-left: 5px;">
             <h4 style="color: #00F2FE; font-family: Orbitron; margin-top:0;">STEP 02</h4>
-            <p style="font-weight: bold; color: #FFFFFF; margin-bottom: 6px;">モードを選ぶ・出力設定</p>
-            <p style="font-size: 0.82rem; color: #94A3B8; line-height: 1.5;">
+            <p style='font-weight: bold; color: #FFFFFF; margin-bottom: 6px;'>モードを選ぶ・出力設定</p>
+            <p style='font-size: 0.82rem; color: #94A3B8; line-height: 1.5;'>
                 テキスト形式やSRT形式、要約の有無を好みに合わせて選択して実行します。
             </p>
         </div>
         <div style="flex: 1; padding-left: 5px;">
             <h4 style="color: #FF007F; font-family: Orbitron; margin-top:0;">STEP 03</h4>
-            <p style="font-weight: bold; color: #FFFFFF; margin-bottom: 6px;">自動リカバリー & 決済連動</p>
-            <p style="font-size: 0.82rem; color: #94A3B8; line-height: 1.5;">
+            <p style='font-weight: bold; color: #FFFFFF; margin-bottom: 6px;'>自動リカバリー & 決済連動</p>
+            <p style='font-size: 0.82rem; color: #94A3B8; line-height: 1.5;'>
                 混雑エラーは自動再試行。正規の決済完了者のみがPRO機能を利用できます。
             </p>
         </div>
